@@ -111,13 +111,11 @@ a:hover {
   color: #c3d4cf;
   display: flex;
   flex-direction: column;
-  position: fixed;
-  inset: 0 0 0 auto;
-  left: 0;
+  position: sticky;
   top: 0;
-  bottom: 0;
+  height: 100vh;
   flex-shrink: 0;
-  z-index: 40;
+  z-index: 30;
   transition: width 180ms ease;
   overflow-y: auto;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -302,11 +300,12 @@ a:hover {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  margin-left: var(--rail);
-  transition: margin-left 180ms ease;
 }
-.rail.is-open ~ .main {
-  margin-left: var(--rail-open);
+
+/* Pastikan tidak ada scroll horizontal di halaman admin. */
+html,
+body {
+  overflow-x: hidden;
 }
 
 /* ------------------------------------------------------------ topbar */
