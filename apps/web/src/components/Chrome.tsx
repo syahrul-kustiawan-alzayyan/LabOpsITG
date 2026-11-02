@@ -207,9 +207,10 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="rail-foot">
+          <div className="rail-divider" aria-hidden="true" />
           <button className="rail-toggle" onClick={toggleRail} aria-label={open ? "Sempitkan navigasi" : "Lebarkan navigasi"}>
             <Icon name="chevron" size={16} />
-            <span>Sempitkan</span>
+            {open && <span>Sempitkan</span>}
           </button>
         </div>
       </aside>
