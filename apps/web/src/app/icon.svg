@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LabOps">
+  <rect width="512" height="512" rx="116" fill="#0f4c4c"/>
+  <rect x="66" y="66" width="380" height="380" rx="76" fill="none" stroke="#14746f" stroke-width="2" opacity="0.65"/>
+  <path d="M158 132h64v186h132v64H158z" fill="#f4f6f2"/>
+  <circle cx="352" cy="164" r="30" fill="#d9660a"/>
+  <path d="M158 364h196" stroke="#d9660a" stroke-width="0" fill="none"/>
+</svg>

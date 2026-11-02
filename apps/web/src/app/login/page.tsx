@@ -1,63 +1,171 @@
 ﻿"use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { api, API_BASE } from "@/lib/api";
+import { Icon } from "@/components/Icon";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [next, setNext] = useState("/dashboard");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
+  useEffect(() => {
+    const target = new URLSearchParams(window.location.search).get("next");
+    if (target && target.startsWith("/")) setNext(target);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:4000/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.message || "Login gagal");
-      }
-      router.push("/dashboard");
+      await api("/auth/login", { method: "POST", body: { email, password } });
+      router.push(next.startsWith("/") ? next : "/dashboard");
+      router.refresh();
     } catch (err: any) {
-      setError(err.message || "Login gagal");
+      setError(err?.message || "Tidak dapat masuk. Periksa email dan kata sandi.");
     } finally {
       setLoading(false);
     }
   }
 
+  function fill(role: "admin" | "koordinator" | "dosen" | "mahasiswa") {
+    const map = {
+      admin: ["admin@labops.local", "admin123"],
+      koordinator: ["koordinator@labops.local", "koord123"],
+      dosen: ["drdedekurniadimkom@labops.local", "dosen123"],
+      mahasiswa: ["mhs01@labops.local", "mhs123"],
+    } as const;
+    setEmail(map[role][0]);
+    setPassword(map[role][1]);
+    setError("");
+  }
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a, #1e3a8a)" }}>
-      <div className="card" style={{ width: 400, padding: 32 }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div className="logo" style={{ width: 56, height: 56, margin: "0 auto 12px", fontSize: 24 }}>L</div>
-          <h1 style={{ margin: 0, fontSize: 22 }}>LabOps Ilkom ITG</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 4 }}>Masuk ke sistem operasional lab</p>
+    <div className="auth-wrap">
+      <aside className="auth-aside">
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div className="brand-inline" style={{ color: "#fff", marginBottom: 40 }}>
+            <span className="rail-mark" style={{ background: "#14746f" }}>
+              L
+            </span>
+            <span>
+              <span className="brand-name" style={{ color: "#fff" }}>
+                LabOps
+              </span>
+              <span className="brand-sub" style={{ color: "#8fada6", display: "block" }}>
+                Laboratorium Ilmu Komputer ITG
+              </span>
+            </span>
+          </div>
+          <h2>Satu tempat untuk seluruh operasional lab.</h2>
+          <p>
+            Jadwal, peminjaman, kendala, absensi, dan inventaris tercatat dalam satu alur — bukan lagi tersebar
+            di grup chat dan spreadsheet.
+          </p>
+          <ul className="auth-points">
+            <li>
+              <Icon name="check" size={15} /> Konflik jadwal dicegah sebelum diajukan
+            </li>
+            <li>
+              <Icon name="check" size={15} /> Persetujuan peminjaman tercatat dan bertanggal
+            </li>
+            <li>
+              <Icon name="check" size={15} /> Kendala punya tiket, penanggung jawab, dan tenggat
+            </li>
+          </ul>
         </div>
-        <form onSubmit={onSubmit} className="form-grid">
-          <div>
-            <label>Email institusi</label>
-            <input className="input" type="email" placeholder="nama@kampus.ac.id" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </div>
-          <div>
-            <label>Kata sandi</label>
-            <input className="input" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </div>
-          {error && <div className="alert alert-danger">{error}</div>}
-          <button className="btn" type="submit" disabled={loading} style={{ width: "100%", justifyContent: "center" }}>
-            {loading ? "Memproses..." : "Masuk"}
-          </button>
-        </form>
-        <p style={{ marginTop: 16, fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
-          Demo: admin@labops.local / admin123
+        <p style={{ fontSize: 11, color: "#6f8b85", position: "relative", zIndex: 1, margin: 0 }}>
+          Institut Teknologi Garut · Jurusan Ilmu Komputer
         </p>
-      </div>
+      </aside>
+
+      <main className="auth-main">
+        <div className="auth-card">
+          <h1 className="auth-title">Masuk ke LabOps</h1>
+          <p className="auth-sub">Gunakan akun institusi Anda.</p>
+
+          <form onSubmit={onSubmit} className="form-grid" noValidate>
+            <div className="field">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                className="input"
+                type="email"
+                autoComplete="email"
+                placeholder="nama@labops.local"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="password">Kata sandi</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  id="password"
+                  className="input"
+                  type={showPass ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: 72 }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setShowPass((v) => !v)}
+                  style={{ position: "absolute", right: 2, top: 2, minHeight: 32 }}
+                >
+                  {showPass ? "Sembunyi" : "Lihat"}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                {error}
+              </div>
+            )}
+
+            <button className="btn" type="submit" disabled={loading} style={{ width: "100%", minHeight: 38 }}>
+              {loading ? "Memeriksa…" : "Masuk"}
+            </button>
+          </form>
+
+          <div className="demo-accounts">
+            <strong style={{ color: "var(--ink)" }}>Akun demo</strong>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+              <button type="button" className="chip" onClick={() => fill("admin")}>
+                Admin
+              </button>
+              <button type="button" className="chip" onClick={() => fill("koordinator")}>
+                Koordinator
+              </button>
+              <button type="button" className="chip" onClick={() => fill("dosen")}>
+                Dosen
+              </button>
+              <button type="button" className="chip" onClick={() => fill("mahasiswa")}>
+                Mahasiswa
+              </button>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              Server: <code>{API_BASE.replace(/^https?:\/\//, "")}</code>
+            </div>
+          </div>
+
+          <p style={{ marginTop: 14, fontSize: 11.5, color: "var(--ink-soft)" }}>
+            <a href="/">← Kembali ke halaman informasi</a>
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

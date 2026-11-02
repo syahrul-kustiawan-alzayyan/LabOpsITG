@@ -1,0 +1,50 @@
+{
+  "name": "LabOps — Laboratorium Ilmu Komputer ITG",
+  "short_name": "LabOps",
+  "description": "Sistem operasional Laboratorium Ilmu Komputer Institut Teknologi Garut: jadwal, peminjaman, kendala, absensi, inventaris, dan rekrutmen.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f6f2",
+  "theme_color": "#0f4c4c",
+  "lang": "id",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Jadwal lab",
+      "url": "/schedules",
+      "description": "Lihat peta jadwal laboratorium"
+    },
+    {
+      "name": "Peminjaman",
+      "url": "/bookings",
+      "description": "Ajukan atau tinjau peminjaman lab"
+    },
+    {
+      "name": "Absensi",
+      "url": "/attendance",
+      "description": "Pindai token QR sesi praktikum"
+    }
+  ]
+}

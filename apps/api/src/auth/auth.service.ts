@@ -3,23 +3,53 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../prisma/prisma.service";
 
+export interface SessionUser {
+  id: string;
+  nama: string;
+  email: string;
+  role: string;
+  subRoles: string[];
+}
+
 @Injectable()
 export class AuthService {
   constructor(private prisma: PrismaService, private jwt: JwtService) {}
 
+  private toSessionUser(user: { id: string; nama: string; email: string; role: string; subRoles: string[] }): SessionUser {
+    return { id: user.id, nama: user.nama, email: user.email, role: user.role, subRoles: user.subRoles };
+  }
+
   async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || user.deletedAt || user.status !== "ACTIVE") throw new UnauthorizedException("Invalid credentials");
+    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    if (!user || user.deletedAt || user.status !== "ACTIVE") throw new UnauthorizedException("Email atau kata sandi salah");
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException("Invalid credentials");
+    if (!ok) throw new UnauthorizedException("Email atau kata sandi salah");
     return user;
   }
 
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
-    const payload = { sub: user.id, email: user.email, role: user.role, subRoles: user.subRoles };
+    const payload = { sub: user.id, email: user.email, role: user.role, subRoles: user.subRoles, nama: user.nama };
     const accessToken = this.jwt.sign(payload, { expiresIn: "15m" });
     const refreshToken = this.jwt.sign(payload, { secret: process.env.JWT_REFRESH_SECRET, expiresIn: "7d" });
-    return { accessToken, refreshToken, user: { id: user.id, nama: user.nama, email: user.email, role: user.role, subRoles: user.subRoles } };
+    return { accessToken, refreshToken, user: this.toSessionUser(user) };
+  }
+
+  /** Data pengguna selalu diambil dari database, bukan dari klaim token. */
+  async me(userId: string): Promise<SessionUser> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, nama: true, email: true, role: true, subRoles: true, status: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt || user.status !== "ACTIVE") throw new UnauthorizedException("Akun tidak aktif");
+    return this.toSessionUser(user);
+  }
+
+  async refreshUser(userId: string) {
+    const user = await this.me(userId);
+    return this.jwt.sign(
+      { sub: user.id, email: user.email, role: user.role, subRoles: user.subRoles, nama: user.nama },
+      { expiresIn: "15m" },
+    );
   }
 }

@@ -7,6 +7,9 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install chromium",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:generate": "prisma generate"
@@ -19,6 +22,7 @@
     "seed": "node prisma/seed_full.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@prisma/client": "5.22.0",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^5.1.1",

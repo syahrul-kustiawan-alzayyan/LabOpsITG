@@ -1,9 +1,48 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { addDays, dayOfWeekJakarta, startOfJakartaDay, todayJakarta } from "../common/time";
 
 @Injectable()
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
+
+  /** Ringkasan operasional untuk papan triage hari ini. */
+  async today() {
+    const today = todayJakarta();
+    const tomorrow = addDays(today, 1);
+    const hari = dayOfWeekJakarta(today);
+
+    const [pendingBookings, approvedToday, openIssues, overdueIssues, sessions, attendanceToday, labsActive] = await Promise.all([
+      this.prisma.booking.count({ where: { status: "DIAJUKAN", deletedAt: null } }),
+      this.prisma.booking.count({ where: { status: "DISETUJUI", deletedAt: null, tanggal: { gte: today, lt: tomorrow } } }),
+      this.prisma.issue.count({ where: { deletedAt: null, status: { in: ["BARU", "DIVERIFIKASI", "DALAM_PENANGANAN"] } } }),
+      this.prisma.issue.count({ where: { deletedAt: null, status: { notIn: ["SELESAI", "DITOLAK"] }, dueAt: { lt: today } } }),
+      this.prisma.schedule.findMany({
+        where: { hari, deletedAt: null, status: "AKTIF", tanggalMulai: { lte: today }, tanggalSelesai: { gte: today } },
+        include: { lab: { select: { kode: true, nama: true } }, pengampu: { select: { nama: true } } },
+        orderBy: { jamMulai: "asc" },
+      }),
+      this.prisma.attendance.count({ where: { scannedAt: { gte: today, lt: tomorrow }, deletedAt: null } }),
+      this.prisma.lab.count({ where: { status: "AKTIF", deletedAt: null } }),
+    ]);
+
+    const enrolled = sessions.length
+      ? await this.prisma.classEnrollment.count({ where: { scheduleId: { in: sessions.map((s) => s.id) }, deletedAt: null } })
+      : 0;
+
+    return {
+      date: today.toISOString().slice(0, 10),
+      pendingBookings,
+      approvedToday,
+      openIssues,
+      overdueIssues,
+      sessionsToday: sessions.length,
+      attendanceToday,
+      labsActive,
+      enrolledToday: enrolled,
+      sessions,
+    };
+  }
 
   async dashboard() {
     const [users, labs, schedules, bookings, issues, attendance, inventory] = await Promise.all([

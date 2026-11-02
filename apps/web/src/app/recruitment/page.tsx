@@ -1,144 +1,387 @@
 ﻿"use client";
-import { useEffect, useState } from "react";
 
-const API = "http://localhost:4000";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, fileUrl, uploadFile } from "@/lib/api";
+import { Icon } from "@/components/Icon";
+
 const STATUS = ["DIAJUKAN", "DIPROSES", "WAWANCARA", "DITERIMA", "DITOLAK", "CADANGAN"];
+const STATUS_LABEL: Record<string, string> = {
+  DIAJUKAN: "Diajukan",
+  DIPROSES: "Diproses",
+  WAWANCARA: "Wawancara",
+  DITERIMA: "Diterima",
+  DITOLAK: "Ditolak",
+  CADANGAN: "Cadangan",
+  DIBUKA: "Dibuka",
+  DITUTUP: "Ditutup",
+};
+const STATUS_BADGE: Record<string, string> = {
+  DIAJUKAN: "badge-warning",
+  DIPROSES: "badge-info",
+  WAWANCARA: "badge-info",
+  DITERIMA: "badge-success",
+  DITOLAK: "badge-danger",
+  CADANGAN: "badge-muted",
+  DIBUKA: "badge-success",
+  DITUTUP: "badge-muted",
+};
+
+const EMPTY_PERIOD = { posisi: "", mataKuliah: "", kuota: 3, persyaratan: "", tenggat: "" };
+const EMPTY_APPLY = { periodId: "", mataKuliahDilamar: "", motivasi: "", nilai: "", ketersediaan: "", cvUrl: "", transkripUrl: "" };
 
 export default function RecruitmentPage() {
   const [periods, setPeriods] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [mine, setMine] = useState<any[]>([]);
   const [me, setMe] = useState<any>(null);
-  const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState<{ type: string; text: string } | null>(null);
   const [tab, setTab] = useState<"periods" | "apply" | "mine" | "manage">("periods");
-
-  const [periodForm, setPeriodForm] = useState({ posisi: "", mataKuliah: "", kuota: 3, persyaratan: "", tenggat: "" });
-  const [applyForm, setApplyForm] = useState({ periodId: "", mataKuliahDilamar: "", motivasi: "", nilai: "", ketersediaan: "", cvUrl: "", transkripUrl: "" });
-  const [statusId, setStatusId] = useState<string | null>(null);
+  const [periodForm, setPeriodForm] = useState<any>(EMPTY_PERIOD);
+  const [applyForm, setApplyForm] = useState<any>(EMPTY_APPLY);
+  const [statusApp, setStatusApp] = useState<any>(null);
   const [statusVal, setStatusVal] = useState("DIPROSES");
   const [catatan, setCatatan] = useState("");
+  const [uploading, setUploading] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const isCoord = me?.role === "COORDINATOR" || me?.role === "ADMIN_SYSTEM";
+  const isCoord = me && ["COORDINATOR", "ADMIN_SYSTEM"].includes(me.role);
 
-  async function load() {
-    const pres = await fetch(`${API}/recruitment/periods`, { credentials: "include" });
-    if (pres.ok) setPeriods(await pres.json());
-    const mres = await fetch(`${API}/auth/me`, { credentials: "include" });
-    if (mres.ok) setMe((await mres.json()).user);
-    const mmine = await fetch(`${API}/recruitment/applications/mine`, { credentials: "include" });
-    if (mmine.ok) setMine(await mmine.json());
-    if (isCoord) {
-      const ares = await fetch(`${API}/recruitment/applications`, { credentials: "include" });
-      if (ares.ok) setApplications(await ares.json());
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [p, m] = await Promise.all([api<any[]>("/recruitment/periods"), api<{ user: any }>("/auth/me")]);
+      setPeriods(p);
+      setMe(m.user);
+      const mineRes = await api<any[]>("/recruitment/applications/mine").catch(() => []);
+      setMine(mineRes);
+      if (["COORDINATOR", "ADMIN_SYSTEM"].includes(m.user.role)) {
+        setApplications(await api<any[]>("/recruitment/applications").catch(() => []));
+      }
+    } catch (e: any) {
+      setMsg({ type: "danger", text: e.message });
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const openPeriods = useMemo(() => periods.filter((p) => p.status === "DIBUKA" && new Date(p.tenggat) >= new Date(new Date().toDateString())), [periods]);
+  const pendingApps = applications.filter((a) => ["DIAJUKAN", "DIPROSES", "WAWANCARA"].includes(a.status));
+
+  function pickPeriod(periodId: string) {
+    const p = periods.find((x) => x.id === periodId);
+    setApplyForm((prev: any) => ({ ...prev, periodId, mataKuliahDilamar: p?.mataKuliah || prev.mataKuliahDilamar }));
   }
-  useEffect(() => { load(); }, []);
 
   async function createPeriod(e: React.FormEvent) {
     e.preventDefault();
-    setMsg("");
-    const res = await fetch(`${API}/recruitment/periods`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(periodForm) });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setMsg(data?.message || "Gagal"); return; }
-    setMsg("Periode dibuat");
-    setPeriodForm({ posisi: "", mataKuliah: "", kuota: 3, persyaratan: "", tenggat: "" });
-    load();
+    setMsg(null);
+    try {
+      await api("/recruitment/periods", { method: "POST", body: { ...periodForm, kuota: Number(periodForm.kuota) } });
+      setMsg({ type: "success", text: "Periode rekrutmen dibuka." });
+      setPeriodForm(EMPTY_PERIOD);
+      load();
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message });
+    }
   }
 
   async function apply(e: React.FormEvent) {
     e.preventDefault();
-    setMsg("");
-    const body: any = { ...applyForm };
-    if (body.nilai) body.nilai = Number(body.nilai);
-    if (!body.cvUrl) delete body.cvUrl;
-    if (!body.transkripUrl) delete body.transkripUrl;
-    const res = await fetch(`${API}/recruitment/applications`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setMsg(data?.message || "Gagal"); return; }
-    setMsg("Lamaran terkirim");
-    setApplyForm({ periodId: "", mataKuliahDilamar: "", motivasi: "", nilai: "", ketersediaan: "", cvUrl: "", transkripUrl: "" });
-    load();
+    setMsg(null);
+    try {
+      const body: any = { ...applyForm };
+      if (body.nilai) body.nilai = Number(body.nilai);
+      if (!body.cvUrl) delete body.cvUrl;
+      if (!body.transkripUrl) delete body.transkripUrl;
+      await api("/recruitment/applications", { method: "POST", body });
+      setMsg({ type: "success", text: "Lamaran terkirim. Pantau statusnya di tab Lamaran Saya." });
+      setApplyForm(EMPTY_APPLY);
+      setTab("mine");
+      load();
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message });
+    }
   }
 
-  async function updateStatus(id: string) {
-    await fetch(`${API}/recruitment/applications/${id}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: statusVal, catatan }) });
-    setStatusId(null); setCatatan(""); load();
+  async function onFile(kind: "cvUrl" | "transkripUrl", e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(kind);
+    setMsg(null);
+    try {
+      const res = await uploadFile(file);
+      setApplyForm((prev: any) => ({ ...prev, [kind]: res.url }));
+      setMsg({ type: "success", text: "Berkas terunggah." });
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message });
+    } finally {
+      setUploading("");
+      e.target.value = "";
+    }
   }
 
-  async function closePeriod(id: string) {
-    await fetch(`${API}/recruitment/periods/${id}/close`, { method: "PATCH", credentials: "include" });
-    load();
+  async function saveStatus() {
+    if (!statusApp) return;
+    try {
+      await api(`/recruitment/applications/${statusApp.id}/status`, { method: "PATCH", body: { status: statusVal, catatan } });
+      setMsg({ type: "success", text: `Status lamaran ${statusApp.pelamar?.nama} diperbarui.` });
+      setStatusApp(null);
+      setCatatan("");
+      load();
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message });
+    }
   }
 
-  const openPeriods = periods.filter((p) => p.status === "DIBUKA");
+  async function closePeriod(p: any) {
+    if (!window.confirm(`Tutup periode ${p.posisi} — ${p.mataKuliah}?`)) return;
+    try {
+      await api(`/recruitment/periods/${p.id}/close`, { method: "PATCH" });
+      setMsg({ type: "success", text: "Periode ditutup." });
+      load();
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message });
+    }
+  }
 
   return (
     <>
       <div className="page-header">
-        <div><h1 className="page-title">Rekrutmen</h1><p className="page-subtitle">Instruktur & Asisten Dosen</p></div>
+        <div>
+          <h1 className="page-title">Rekrutmen Asisten</h1>
+          <p className="page-subtitle">Periode, lamaran, dan tahapan seleksi instruktur serta asisten dosen.</p>
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {(["periods", "apply", "mine"] as const).map((t) => (
-          <button key={t} className={`btn btn-sm ${tab === t ? "" : "btn-secondary"}`} onClick={() => setTab(t)}>{t === "periods" ? "Periode" : t === "apply" ? "Lamar" : "Lamaran Saya"}</button>
+      {msg && (
+        <div className={`alert alert-${msg.type}`} role="status">
+          {msg.text}
+        </div>
+      )}
+
+      <div className="ops-strip reveal">
+        <div className="ops-stat">
+          <span className="ops-stat-label">
+            <Icon name="recruitment" size={14} /> Periode dibuka
+          </span>
+          <span className="ops-stat-value">{openPeriods.length}</span>
+          <span className="ops-stat-note">dari {periods.length} periode</span>
+        </div>
+        <div className="ops-stat">
+          <span className="ops-stat-label">
+            <Icon name="users" size={14} /> Total pelamar
+          </span>
+          <span className="ops-stat-value">{periods.reduce((sum, p) => sum + (p._count?.applications || 0), 0)}</span>
+          <span className="ops-stat-note">seluruh periode</span>
+        </div>
+        <div className="ops-stat">
+          <span className="ops-stat-label">
+            <Icon name="clock" size={14} /> Lamaran saya
+          </span>
+          <span className="ops-stat-value">{mine.length}</span>
+          <span className="ops-stat-note">{mine.filter((a) => ["DITERIMA", "DITOLAK"].includes(a.status)).length} sudah final</span>
+        </div>
+        <div className="ops-stat">
+          <span className="ops-stat-label">
+            <Icon name="issue" size={14} /> Perlu diproses
+          </span>
+          <span className="ops-stat-value">{isCoord ? pendingApps.length : "—"}</span>
+          <span className="ops-stat-note">{isCoord ? "lamaran menunggu keputusan" : "khusus pengelola"}</span>
+        </div>
+      </div>
+
+      <div className="chip-row" style={{ marginBottom: 16 }}>
+        {([
+          ["periods", "Periode"],
+          ["apply", "Lamar"],
+          ["mine", "Lamaran saya"],
+          ...(isCoord ? [["manage", "Kelola"] as [string, string]] : []),
+        ] as [string, string][]).map(([value, label]) => (
+          <button key={value} type="button" className={`chip ${tab === value ? "is-active" : ""}`} onClick={() => setTab(value as any)}>
+            {label}
+          </button>
         ))}
-        {isCoord && <button className={`btn btn-sm ${tab === "manage" ? "" : "btn-secondary"}`} onClick={() => setTab("manage")}>Kelola</button>}
       </div>
-
-      {msg && <div className="alert alert-success">{msg}</div>}
 
       {tab === "periods" && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Posisi</th><th>Mata Kuliah</th><th>Kuota</th><th>Tenggat</th><th>Status</th><th>Pelamar</th></tr></thead>
-            <tbody>
-              {periods.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.posisi}</td>
-                  <td>{p.mataKuliah}</td>
-                  <td>{p.kuota}</td>
-                  <td>{new Date(p.tenggat).toLocaleDateString("id-ID")}</td>
-                  <td><span className={`badge ${p.status === "DIBUKA" ? "badge-success" : "badge-muted"}`}>{p.status}</span></td>
-                  <td>{p._count?.applications ?? 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+          {loading ? (
+            <div className="card">
+              <div className="skeleton" style={{ width: "40%" }} />
+              <div className="skeleton" style={{ width: "80%", marginTop: 10 }} />
+            </div>
+          ) : periods.length === 0 ? (
+            <div className="card">
+              <div className="empty">
+                <Icon name="recruitment" size={24} />
+                <p className="empty-title">Belum ada periode rekrutmen</p>
+                <p className="empty-text">Koordinator dapat membuka periode baru dari tab Kelola.</p>
+              </div>
+            </div>
+          ) : (
+            periods.map((p) => {
+              const closed = p.status !== "DIBUKA";
+              const remaining = Math.ceil((new Date(p.tenggat).getTime() - Date.now()) / 86400000);
+              return (
+                <article className="card" key={p.id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div className="card-head" style={{ marginBottom: 0 }}>
+                    <div>
+                      <h2 className="card-title">{p.posisi}</h2>
+                      <p className="card-note">{p.mataKuliah}</p>
+                    </div>
+                    <span className={`badge ${STATUS_BADGE[p.status] || "badge-muted"}`}>{STATUS_LABEL[p.status] || p.status}</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div>
+                      <div className="stat-label">Kuota</div>
+                      <div style={{ fontFamily: "var(--font-mono)" }}>{p.kuota} asisten</div>
+                    </div>
+                    <div>
+                      <div className="stat-label">Pelamar</div>
+                      <div style={{ fontFamily: "var(--font-mono)" }}>{p._count?.applications ?? 0}</div>
+                    </div>
+                    <div>
+                      <div className="stat-label">Tenggat</div>
+                      <div style={{ fontSize: 13 }}>{new Date(p.tenggat).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</div>
+                    </div>
+                    <div>
+                      <div className="stat-label">Sisa waktu</div>
+                      <div style={{ fontSize: 13, color: !closed && remaining <= 3 ? "var(--signal)" : undefined }}>
+                        {closed ? "ditutup" : remaining >= 0 ? `${remaining} hari` : "lewat tenggat"}
+                      </div>
+                    </div>
+                  </div>
+                  {p.persyaratan && <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>{p.persyaratan}</p>}
+                  {!closed && (
+                    <button className="btn btn-sm" style={{ marginTop: "auto" }} onClick={() => { setTab("apply"); pickPeriod(p.id); }}>
+                      <Icon name="recruitment" size={14} /> Lamar posisi ini
+                    </button>
+                  )}
+                </article>
+              );
+            })
+          )}
         </div>
       )}
 
       {tab === "apply" && (
         <div className="card">
-          <h3 className="card-title">Ajukan Lamaran</h3>
-          <form onSubmit={apply} className="form-row">
-            <select className="input" value={applyForm.periodId} onChange={(e) => setApplyForm({ ...applyForm, periodId: e.target.value })} required>
-              <option value="">Pilih periode</option>
-              {openPeriods.map((p) => <option key={p.id} value={p.id}>{p.posisi} - {p.mataKuliah}</option>)}
-            </select>
-            <input className="input" placeholder="Mata kuliah yang dilamar" value={applyForm.mataKuliahDilamar} onChange={(e) => setApplyForm({ ...applyForm, mataKuliahDilamar: e.target.value })} required />
-            <textarea className="input" placeholder="Motivasi" value={applyForm.motivasi} onChange={(e) => setApplyForm({ ...applyForm, motivasi: e.target.value })} style={{ gridColumn: "1 / -1" }} rows={3} />
-            <input className="input" placeholder="Nilai (IPK)" type="number" step="0.01" value={applyForm.nilai} onChange={(e) => setApplyForm({ ...applyForm, nilai: e.target.value })} />
-            <input className="input" placeholder="Ketersediaan waktu" value={applyForm.ketersediaan} onChange={(e) => setApplyForm({ ...applyForm, ketersediaan: e.target.value })} />
-            <input className="input" placeholder="URL CV" value={applyForm.cvUrl} onChange={(e) => setApplyForm({ ...applyForm, cvUrl: e.target.value })} />
-            <input className="input" placeholder="URL Transkrip" value={applyForm.transkripUrl} onChange={(e) => setApplyForm({ ...applyForm, transkripUrl: e.target.value })} />
-            <button className="btn" type="submit" style={{ gridColumn: "1 / -1" }}>Kirim Lamaran</button>
-          </form>
+          <div className="card-head">
+            <div>
+              <h2 className="card-title">Formulir lamaran</h2>
+              <p className="card-note">Hanya periode berstatus dibuka dan belum lewat tenggat yang dapat dilamar.</p>
+            </div>
+            <span className="badge badge-plain">{openPeriods.length} periode tersedia</span>
+          </div>
+          {openPeriods.length === 0 ? (
+            <div className="empty">
+              <Icon name="clock" size={24} />
+              <p className="empty-title">Belum ada periode terbuka</p>
+              <p className="empty-text">Tunggu pengumuman rekrutmen berikutnya.</p>
+            </div>
+          ) : (
+            <form onSubmit={apply} className="form-grid">
+              <div className="form-row">
+                <div className="field">
+                  <label htmlFor="rec-period">Periode</label>
+                  <select id="rec-period" value={applyForm.periodId} onChange={(e) => pickPeriod(e.target.value)} required>
+                    <option value="">Pilih periode</option>
+                    {openPeriods.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.posisi} — {p.mataKuliah}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="rec-mk">Mata kuliah dilamar</label>
+                  <input id="rec-mk" className="input" value={applyForm.mataKuliahDilamar} onChange={(e) => setApplyForm({ ...applyForm, mataKuliahDilamar: e.target.value })} required />
+                </div>
+                <div className="field">
+                  <label htmlFor="rec-nilai">IPK / nilai</label>
+                  <input id="rec-nilai" className="input" type="number" step="0.01" min={0} max={4} placeholder="3.45" value={applyForm.nilai} onChange={(e) => setApplyForm({ ...applyForm, nilai: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label htmlFor="rec-waktu">Ketersediaan waktu</label>
+                  <input id="rec-waktu" className="input" placeholder="Senin–Kamis, 13.00–17.00" value={applyForm.ketersediaan} onChange={(e) => setApplyForm({ ...applyForm, ketersediaan: e.target.value })} />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="rec-motivasi">Motivasi</label>
+                <textarea id="rec-motivasi" rows={3} placeholder="Mengapa Anda ingin menjadi asisten dosen?" value={applyForm.motivasi} onChange={(e) => setApplyForm({ ...applyForm, motivasi: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <div className="field">
+                  <label htmlFor="rec-cv">CV (PDF, opsional)</label>
+                  <input id="rec-cv" className="input" type="file" accept="application/pdf" onChange={(e) => onFile("cvUrl", e)} disabled={uploading === "cvUrl"} />
+                  {applyForm.cvUrl && (
+                    <a href={fileUrl(applyForm.cvUrl)} target="_blank" rel="noreferrer" className="field-hint">
+                      CV terunggah — buka berkas
+                    </a>
+                  )}
+                </div>
+                <div className="field">
+                  <label htmlFor="rec-transkrip">Transkrip nilai (PDF, opsional)</label>
+                  <input id="rec-transkrip" className="input" type="file" accept="application/pdf" onChange={(e) => onFile("transkripUrl", e)} disabled={uploading === "transkripUrl"} />
+                  {applyForm.transkripUrl && (
+                    <a href={fileUrl(applyForm.transkripUrl)} target="_blank" rel="noreferrer" className="field-hint">
+                      Transkrip terunggah — buka berkas
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div>
+                <button className="btn" type="submit" disabled={!!uploading || !applyForm.periodId}>
+                  <Icon name="recruitment" size={15} /> Kirim lamaran
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
       {tab === "mine" && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Posisi</th><th>Mata Kuliah</th><th>Status</th><th>Catatan</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Posisi</th>
+                <th>Mata kuliah</th>
+                <th>Status</th>
+                <th>Catatan</th>
+                <th>Tanggal</th>
+              </tr>
+            </thead>
             <tbody>
-              {mine.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.period?.posisi}</td>
-                  <td>{a.mataKuliahDilamar}</td>
-                  <td><span className="badge badge-info">{a.status}</span></td>
-                  <td>{a.catatanPenilaian}</td>
+              {mine.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="empty">
+                      <Icon name="recruitment" size={24} />
+                      <p className="empty-title">Belum ada lamaran</p>
+                      <p className="empty-text">Lamaran yang dikirim akan tampil di sini.</p>
+                    </div>
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                mine.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.period?.posisi}</td>
+                    <td>{a.mataKuliahDilamar}</td>
+                    <td>
+                      <span className={`badge ${STATUS_BADGE[a.status] || "badge-muted"}`}>{STATUS_LABEL[a.status] || a.status}</span>
+                    </td>
+                    <td style={{ fontSize: 12.5 }}>{a.catatanPenilaian || "—"}</td>
+                    <td className="num" style={{ fontSize: 12 }}>
+                      {new Date(a.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -146,29 +389,77 @@ export default function RecruitmentPage() {
 
       {tab === "manage" && isCoord && (
         <>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h3 className="card-title">Buka Periode Rekrutmen</h3>
-            <form onSubmit={createPeriod} className="form-row">
-              <input className="input" placeholder="Posisi" value={periodForm.posisi} onChange={(e) => setPeriodForm({ ...periodForm, posisi: e.target.value })} required />
-              <input className="input" placeholder="Mata kuliah" value={periodForm.mataKuliah} onChange={(e) => setPeriodForm({ ...periodForm, mataKuliah: e.target.value })} required />
-              <input className="input" placeholder="Kuota" type="number" value={periodForm.kuota} onChange={(e) => setPeriodForm({ ...periodForm, kuota: Number(e.target.value) })} required />
-              <input className="input" type="date" value={periodForm.tenggat} onChange={(e) => setPeriodForm({ ...periodForm, tenggat: e.target.value })} required />
-              <textarea className="input" placeholder="Persyaratan" value={periodForm.persyaratan} onChange={(e) => setPeriodForm({ ...periodForm, persyaratan: e.target.value })} style={{ gridColumn: "1 / -1" }} rows={2} />
-              <button className="btn" type="submit" style={{ gridColumn: "1 / -1" }}>Buka Periode</button>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-head">
+              <div>
+                <h2 className="card-title">Buka periode rekrutmen</h2>
+                <p className="card-note">Periode langsung berstatus dibuka dan dapat dilamar hingga tenggat.</p>
+              </div>
+            </div>
+            <form onSubmit={createPeriod} className="form-grid">
+              <div className="form-row">
+                <div className="field">
+                  <label htmlFor="np-posisi">Posisi</label>
+                  <input id="np-posisi" className="input" placeholder="Asisten Dosen" value={periodForm.posisi} onChange={(e) => setPeriodForm({ ...periodForm, posisi: e.target.value })} required />
+                </div>
+                <div className="field">
+                  <label htmlFor="np-mk">Mata kuliah</label>
+                  <input id="np-mk" className="input" placeholder="Praktikum Basis Data" value={periodForm.mataKuliah} onChange={(e) => setPeriodForm({ ...periodForm, mataKuliah: e.target.value })} required />
+                </div>
+                <div className="field">
+                  <label htmlFor="np-kuota">Kuota</label>
+                  <input id="np-kuota" className="input" type="number" min={1} value={periodForm.kuota} onChange={(e) => setPeriodForm({ ...periodForm, kuota: e.target.value })} required />
+                </div>
+                <div className="field">
+                  <label htmlFor="np-tenggat">Tenggat</label>
+                  <input id="np-tenggat" className="input" type="date" value={periodForm.tenggat} onChange={(e) => setPeriodForm({ ...periodForm, tenggat: e.target.value })} required />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="np-syarat">Persyaratan</label>
+                <textarea id="np-syarat" rows={2} placeholder="Mahasiswa aktif semester 3 ke atas, IPK minimal 3.0." value={periodForm.persyaratan} onChange={(e) => setPeriodForm({ ...periodForm, persyaratan: e.target.value })} />
+              </div>
+              <div>
+                <button className="btn" type="submit">
+                  Buka periode
+                </button>
+              </div>
             </form>
           </div>
 
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h3 className="card-title">Kelola Periode</h3>
-            <div className="table-wrap">
+          <div className="card card-flush" style={{ marginBottom: 16 }}>
+            <div className="card-head">
+              <h2 className="card-title">Kelola periode ({periods.length})</h2>
+            </div>
+            <div className="table-wrap" style={{ border: "none", borderRadius: 0 }}>
               <table className="table">
-                <thead><tr><th>Posisi</th><th>Status</th><th>Aksi</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Posisi</th>
+                    <th>Mata kuliah</th>
+                    <th>Pelamar</th>
+                    <th>Tenggat</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {periods.map((p) => (
                     <tr key={p.id}>
-                      <td>{p.posisi} - {p.mataKuliah}</td>
-                      <td><span className={`badge ${p.status === "DIBUKA" ? "badge-success" : "badge-muted"}`}>{p.status}</span></td>
-                      <td>{p.status === "DIBUKA" && <button className="btn btn-danger btn-sm" onClick={() => closePeriod(p.id)}>Tutup</button>}</td>
+                      <td>{p.posisi}</td>
+                      <td>{p.mataKuliah}</td>
+                      <td className="num">{p._count?.applications ?? 0}</td>
+                      <td className="num">{new Date(p.tenggat).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                      <td>
+                        <span className={`badge ${STATUS_BADGE[p.status] || "badge-muted"}`}>{STATUS_LABEL[p.status] || p.status}</span>
+                      </td>
+                      <td>
+                        {p.status === "DIBUKA" && (
+                          <button className="btn btn-danger btn-sm" onClick={() => closePeriod(p)}>
+                            Tutup
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -176,37 +467,103 @@ export default function RecruitmentPage() {
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="card-title">Kelola Lamaran ({applications.length})</h3>
-            <div className="table-wrap">
+          <div className="card card-flush">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title">Kelola lamaran ({applications.length})</h2>
+                <p className="card-note">{pendingApps.length} lamaran belum final.</p>
+              </div>
+            </div>
+            <div className="table-wrap" style={{ border: "none", borderRadius: 0 }}>
               <table className="table">
-                <thead><tr><th>Pelamar</th><th>Posisi</th><th>MK Dilamar</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Pelamar</th>
+                    <th>Posisi</th>
+                    <th>MK dilamar</th>
+                    <th>Nilai</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {applications.map((a) => (
-                    <tr key={a.id}>
-                      <td>{a.pelamar?.nama}</td>
-                      <td>{a.period?.posisi}</td>
-                      <td>{a.mataKuliahDilamar}</td>
-                      <td>{a.nilai}</td>
-                      <td><span className="badge badge-info">{a.status}</span></td>
-                      <td><button className="btn btn-secondary btn-sm" onClick={() => setStatusId(a.id)}>Ubah Status</button></td>
+                  {applications.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div className="empty" style={{ padding: 24 }}>
+                          <p className="empty-text">Belum ada lamaran masuk.</p>
+                        </div>
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    applications.map((a) => (
+                      <tr key={a.id}>
+                        <td>
+                          <div>{a.pelamar?.nama}</div>
+                          <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>{a.pelamar?.email}</div>
+                        </td>
+                        <td>{a.period?.posisi}</td>
+                        <td>{a.mataKuliahDilamar}</td>
+                        <td className="num">{a.nilai ?? "—"}</td>
+                        <td>
+                          <span className={`badge ${STATUS_BADGE[a.status] || "badge-muted"}`}>{STATUS_LABEL[a.status] || a.status}</span>
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setStatusApp(a);
+                              setStatusVal(a.status);
+                              setCatatan(a.catatanPenilaian || "");
+                            }}
+                          >
+                            Ubah status
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {statusId && (
-            <div className="panel" style={{ borderColor: "#fecaca", background: "#fef2f2" }}>
-              <h4 style={{ margin: "0 0 8px" }}>Ubah Status Lamaran</h4>
-              <select className="input" style={{ maxWidth: 240 }} value={statusVal} onChange={(e) => setStatusVal(e.target.value)}>
-                {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <textarea className="input" placeholder="Catatan" value={catatan} onChange={(e) => setCatatan(e.target.value)} style={{ marginTop: 8 }} rows={2} />
-              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                <button className="btn btn-sm" onClick={() => updateStatus(statusId)}>Simpan</button>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setStatusId(null); setCatatan(""); }}>Batal</button>
+          {statusApp && (
+            <div className="panel reveal">
+              <div className="card-head">
+                <div>
+                  <h3 className="panel-title" style={{ margin: 0 }}>
+                    Keputusan lamaran · {statusApp.pelamar?.nama}
+                  </h3>
+                  <p className="card-note">Status Diterima otomatis menambahkan sub-peran asisten/instruktur.</p>
+                </div>
+                <button className="icon-btn" onClick={() => setStatusApp(null)} aria-label="Tutup">
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
+              <div className="form-row">
+                <div className="field">
+                  <label htmlFor="as-status">Status</label>
+                  <select id="as-status" value={statusVal} onChange={(e) => setStatusVal(e.target.value)}>
+                    {STATUS.map((s) => (
+                      <option key={s} value={s}>
+                        {STATUS_LABEL[s]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field" style={{ flex: 2 }}>
+                  <label htmlFor="as-catatan">Catatan penilaian</label>
+                  <input id="as-catatan" className="input" value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Ringkasan hasil seleksi atau jadwal wawancara" />
+                </div>
+              </div>
+              <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                <button className="btn" onClick={saveStatus}>
+                  Simpan keputusan
+                </button>
+                <button className="btn btn-secondary" onClick={() => setStatusApp(null)}>
+                  Batal
+                </button>
               </div>
             </div>
           )}

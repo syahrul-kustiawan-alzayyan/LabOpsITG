@@ -13,6 +13,10 @@ export class ReportsController {
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
   dashboard() { return this.svc.dashboard(); }
 
+  @Get("today")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  today() { return this.svc.today(); }
+
   @Get("weekly")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
   weekly(@Query() q: any) { return this.svc.weekly(q.weekStart, q.labId, q.mataKuliah); }

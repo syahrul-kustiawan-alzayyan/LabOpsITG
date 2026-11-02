@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { dayOfWeekJakarta, startOfJakartaDay } from "../common/time";
 
 function timeToMin(t: string): number {
   const [h, m] = t.split(":").map(Number);
@@ -19,16 +20,20 @@ function timeOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string)
 export class SchedulesService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
 
-  findAll(q: { labId?: string; pengampuId?: string; hari?: number; semester?: string }) {
+  findAll(q: { labId?: string; pengampuId?: string; hari?: number; semester?: string; page?: string; limit?: string }) {
     const where: any = { deletedAt: null, status: "AKTIF" };
     if (q.labId) where.labId = q.labId;
     if (q.pengampuId) where.pengampuId = q.pengampuId;
-    if (q.hari !== undefined) where.hari = Number(q.hari);
+    if (q.hari !== undefined && q.hari !== null && (q.hari as any) !== "") where.hari = Number(q.hari);
     if (q.semester) where.semester = q.semester;
+    const page = Math.max(1, Number(q.page) || 1);
+    const limit = Math.min(500, Math.max(1, Number(q.limit) || 200));
     return this.prisma.schedule.findMany({
       where,
       include: { lab: { select: { kode: true, nama: true } }, pengampu: { select: { id: true, nama: true, email: true } } },
       orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
+      skip: (page - 1) * limit,
+      take: limit,
     }).then(async (schedules) => {
       // attach asisten users
       const ids = Array.from(new Set(schedules.flatMap((s) => s.asistenIds || [])));
@@ -46,6 +51,23 @@ export class SchedulesService {
     });
   }
 
+  /** Jadwal yang relevan untuk satu pengguna: sebagai pengampu atau peserta terdaftar. */
+  async findMine(userId: string) {
+    const schedules = await this.prisma.schedule.findMany({
+      where: {
+        deletedAt: null,
+        status: "AKTIF",
+        OR: [{ pengampuId: userId }, { enrollments: { some: { userId, deletedAt: null } } }],
+      },
+      include: { lab: { select: { kode: true, nama: true } }, pengampu: { select: { id: true, nama: true, email: true } } },
+      orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
+    });
+    const ids = Array.from(new Set(schedules.flatMap((s) => s.asistenIds || [])));
+    const users = ids.length ? await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, nama: true, email: true } }) : [];
+    const map = Object.fromEntries(users.map((u) => [u.id, u]));
+    return schedules.map((s) => ({ ...s, asisten: (s.asistenIds || []).map((id) => map[id]).filter(Boolean) }));
+  }
+
   async checkConflict(params: { labId: string; hari: number; jamMulai: string; jamSelesai: string; tanggalMulai: Date; tanggalSelesai: Date; excludeId?: string }) {
     const { labId, hari, jamMulai, jamSelesai, tanggalMulai, tanggalSelesai, excludeId } = params;
     // existing schedules
@@ -61,10 +83,12 @@ export class SchedulesService {
     const bookings = await this.prisma.booking.findMany({
       where: { labId, status: "DISETUJUI", deletedAt: null },
     });
+    const mulaiDay = startOfJakartaDay(tanggalMulai);
+    const selesaiDay = startOfJakartaDay(tanggalSelesai);
     for (const b of bookings) {
-      const bDate = new Date(b.tanggal);
-      if (bDate.getDay() !== hari) continue;
-      if (bDate < tanggalMulai || bDate > tanggalSelesai) continue;
+      const bDate = startOfJakartaDay(b.tanggal);
+      if (dayOfWeekJakarta(bDate) !== hari) continue;
+      if (bDate < mulaiDay || bDate > selesaiDay) continue;
       if (timeOverlap(b.jamMulai, b.jamSelesai, jamMulai, jamSelesai)) {
         return { conflict: true, type: "peminjaman", item: b };
       }
@@ -73,9 +97,12 @@ export class SchedulesService {
   }
 
   async create(data: any, actorId?: string) {
-    const tanggalMulai = new Date(data.tanggalMulai);
-    const tanggalSelesai = new Date(data.tanggalSelesai);
+    const tanggalMulai = startOfJakartaDay(data.tanggalMulai);
+    const tanggalSelesai = startOfJakartaDay(data.tanggalSelesai);
+    if (Number.isNaN(tanggalMulai.getTime()) || Number.isNaN(tanggalSelesai.getTime())) throw new BadRequestException("Tanggal tidak valid");
+    if (tanggalMulai > tanggalSelesai) throw new BadRequestException("Tanggal mulai harus sebelum tanggal selesai");
     if (timeToMin(data.jamMulai) >= timeToMin(data.jamSelesai)) throw new BadRequestException("Jam mulai harus sebelum jam selesai");
+    if (Number(data.hari) < 0 || Number(data.hari) > 6) throw new BadRequestException("Hari tidak valid");
     const c = await this.checkConflict({ labId: data.labId, hari: Number(data.hari), jamMulai: data.jamMulai, jamSelesai: data.jamSelesai, tanggalMulai, tanggalSelesai });
     if (c.conflict) throw new BadRequestException(`Bentrok dengan ${c.type === "jadwal" ? "jadwal" : "peminjaman"} lain pada lab & jam yang sama`);
     const sch = await this.prisma.schedule.create({
@@ -102,9 +129,10 @@ export class SchedulesService {
   async update(id: string, data: any, actorId?: string) {
     const existing = await this.prisma.schedule.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) throw new NotFoundException("Jadwal tidak ditemukan");
-    const tanggalMulai = data.tanggalMulai ? new Date(data.tanggalMulai) : existing.tanggalMulai;
-    const tanggalSelesai = data.tanggalSelesai ? new Date(data.tanggalSelesai) : existing.tanggalSelesai;
+    const tanggalMulai = data.tanggalMulai ? startOfJakartaDay(data.tanggalMulai) : existing.tanggalMulai;
+    const tanggalSelesai = data.tanggalSelesai ? startOfJakartaDay(data.tanggalSelesai) : existing.tanggalSelesai;
     const hari = data.hari !== undefined ? Number(data.hari) : existing.hari;
+    if (hari < 0 || hari > 6) throw new BadRequestException("Hari tidak valid");
     const jamMulai = data.jamMulai || existing.jamMulai;
     const jamSelesai = data.jamSelesai || existing.jamSelesai;
     const labId = data.labId || existing.labId;

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Patch, Param, Query, UseGuards, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Post, Param, Query, UseGuards, Req } from "@nestjs/common";
 import { Request } from "express";
 import { AttendanceService } from "./attendance.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -32,11 +32,38 @@ export class AttendanceController {
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
   list(@Query() q: any, @Req() req: Request) {
     const user = (req as any).user;
-    if (user.role === "USER") q.userId = user.sub;
-    return this.svc.list(q);
+    return this.svc.list(q, { sub: user.sub, role: user.role });
   }
 
   @Get("recap/:sesiId")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
   recap(@Param("sesiId") sesiId: string) { return this.svc.recap(sesiId); }
+
+  @Get("enrollments/:sesiId")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  enrollments(@Param("sesiId") sesiId: string) { return this.svc.enrollments(sesiId); }
+
+  @Post("enrollments")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  addEnrollment(@Body() body: { sesiId: string; userId: string }, @Req() req: Request) {
+    return this.svc.addEnrollment(body.sesiId, body.userId, (req as any).user.sub);
+  }
+
+  @Delete("enrollments/:id")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  removeEnrollment(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.removeEnrollment(id, (req as any).user.sub);
+  }
+
+  @Post("session-token")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  createSessionToken(@Body() body: { sesiId: string }, @Req() req: Request) {
+    return this.svc.createSessionToken(body.sesiId, (req as any).user.sub);
+  }
+
+  @Get("session-token/mine")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  mySessionTokens(@Req() req: Request) {
+    return this.svc.activeSessionTokens((req as any).user.sub);
+  }
 }

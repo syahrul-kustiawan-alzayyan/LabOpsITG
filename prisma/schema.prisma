@@ -129,6 +129,7 @@ model User {
   applications        Application[]
   notifications       Notification[]
   auditLogs           AuditLog[]
+  enrollments         ClassEnrollment[]
 }
 
 model Lab {
@@ -174,6 +175,8 @@ model Schedule {
   pengampu  User? @relation("Pengampu", fields: [pengampuId], references: [id])
   bookings  Booking[]
   attendances Attendance[]
+  enrollments ClassEnrollment[]
+  qrTokens    SessionQrToken[]
 
   @@index([labId, hari, jamMulai])
 }
@@ -216,6 +219,8 @@ model Issue {
   deskripsi        String
   fotoUrls         String[]
   status           IssueStatus   @default(BARU)
+  dueAt            DateTime?
+  resolvedAt       DateTime?
   penanggungJawabId String?
   deletedAt        DateTime?
   createdAt        DateTime      @default(now())
@@ -259,6 +264,33 @@ model Attendance {
   lab   Lab      @relation(fields: [labId], references: [id])
 
   @@unique([sesiId, userId])
+}
+
+model ClassEnrollment {
+  id         String    @id @default(cuid())
+  scheduleId String
+  userId     String
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, userId])
+  @@index([userId])
+}
+
+model SessionQrToken {
+  id         String   @id @default(cuid())
+  scheduleId String
+  token      String   @unique
+  expiresAt  DateTime
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId, expiresAt])
 }
 
 model InventoryItem {

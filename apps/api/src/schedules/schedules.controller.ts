@@ -12,6 +12,11 @@ export class SchedulesController {
   @Get()
   findAll(@Query() q: any) { return this.svc.findAll(q); }
 
+  @Get("mine")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  findMine(@Req() req: Request) { return this.svc.findMine((req as any).user.sub); }
+
   @Get(":id")
   findOne(@Param("id") id: string) { return this.svc.findOne(id); }
 

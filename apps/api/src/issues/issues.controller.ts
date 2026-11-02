@@ -14,17 +14,21 @@ export class IssuesController {
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
   findAll(@Query() q: any, @Req() req: Request) {
     const user = (req as any).user;
-    if (user.role === "USER") q.pelaporId = user.sub;
-    return this.svc.findAll(q);
+    return this.svc.findAll(q, { sub: user.sub, role: user.role });
   }
 
   @Get(":id")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
-  findOne(@Param("id") id: string) { return this.svc.findOne(id); }
+  findOne(@Param("id") id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.svc.findOne(id, { sub: user.sub, role: user.role });
+  }
 
   @Post()
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
-  create(@Body() body: any, @Req() req: Request) { return this.svc.create(body, (req as any).user.sub); }
+  create(@Body() body: any, @Req() req: Request) {
+    return this.svc.create(body, (req as any).user.sub);
+  }
 
   @Patch(":id/verify")
   @Roles("ADMIN_SYSTEM", "COORDINATOR")
@@ -41,6 +45,7 @@ export class IssuesController {
   @Patch(":id/reopen")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
   reopen(@Param("id") id: string, @Body() body: { catatan?: string }, @Req() req: Request) {
-    return this.svc.reopen(id, body?.catatan, (req as any).user.sub);
+    const user = (req as any).user;
+    return this.svc.reopen(id, body?.catatan, { sub: user.sub, role: user.role });
   }
 }

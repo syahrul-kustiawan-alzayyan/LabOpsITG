@@ -1,136 +1,340 @@
 ﻿"use client";
-import { useEffect, useState } from "react";
 
-const API = "http://localhost:4000";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { Icon } from "@/components/Icon";
+import { ScheduleGrid } from "@/components/ScheduleGrid";
+
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+
+const EMPTY_FORM = {
+  labId: "",
+  mataKuliah: "",
+  kelas: "",
+  pengampuId: "",
+  hari: 1,
+  jamMulai: "08:00",
+  jamSelesai: "10:50",
+  tanggalMulai: "2026-09-01",
+  tanggalSelesai: "2027-01-31",
+  semester: "2026/2027 Ganjil",
+  jenis: "PRAKTIKUM_RUTIN",
+};
 
 export default function SchedulesPage() {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [labs, setLabs] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [me, setMe] = useState<any>(null);
   const [filterLab, setFilterLab] = useState("");
   const [myOnly, setMyOnly] = useState(false);
-  const [meId, setMeId] = useState("");
-  const [form, setForm] = useState({ labId: "", mataKuliah: "", kelas: "", pengampuId: "", hari: 1, jamMulai: "08:00", jamSelesai: "10:00", tanggalMulai: "", tanggalSelesai: "", semester: "", jenis: "PRAKTIKUM_RUTIN" });
-  const [msg, setMsg] = useState("");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [dayFilter, setDayFilter] = useState<number | "">("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<any>(EMPTY_FORM);
+  const [msg, setMsg] = useState<{ type: string; text: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  async function load() {
-    // get current user id
-    if (!meId) {
-      const mres = await fetch(`${API}/auth/me`, { credentials: "include" });
-      if (mres.ok) setMeId((await mres.json()).user.sub);
+  const canManage = me && ["ADMIN_SYSTEM", "COORDINATOR"].includes(me.role);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterLab) params.set("labId", filterLab);
+      const [sched, labList] = await Promise.all([
+        myOnly ? api<any[]>("/schedules/mine") : api<any[]>(`/schedules?${params.toString()}`),
+        api<any[]>("/labs"),
+      ]);
+      setSchedules(sched.filter((s) => (myOnly && filterLab ? s.labId === filterLab : true)));
+      setLabs(labList);
+    } catch (e: any) {
+      setMsg({ type: "danger", text: e.message });
+    } finally {
+      setLoading(false);
     }
-    const uid = meId || (await (async () => { const r = await fetch(`${API}/auth/me`, { credentials: "include" }); return r.ok ? (await r.json()).user.sub : ""; })());
-    let url = `${API}/schedules`;
-    const params: string[] = [];
-    if (filterLab) params.push(`labId=${filterLab}`);
-    if (myOnly && uid) params.push(`pengampuId=${uid}`);
-    if (params.length) url += "?" + params.join("&");
-    const res = await fetch(url, { credentials: "include" });
-    if (res.ok) setSchedules(await res.json());
-    const lres = await fetch(`${API}/labs`, { credentials: "include" });
-    if (lres.ok) setLabs(await lres.json());
-    const ures = await fetch(`${API}/users`, { credentials: "include" });
-    if (ures.ok) setUsers(await ures.json());
-  }
-  useEffect(() => { load(); }, [filterLab, myOnly]);
+  }, [filterLab, myOnly]);
+
+  useEffect(() => {
+    api<{ user: any }>("/auth/me").then((d) => setMe(d.user)).catch(() => {});
+    api<any[]>("/users").then(setUsers).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    setMsg("");
-    const body: any = { ...form, hari: Number(form.hari) };
-    if (!body.pengampuId) delete body.pengampuId;
-    const res = await fetch(`${API}/schedules`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setMsg(data?.message || "Gagal"); return; }
-    setMsg("Jadwal dibuat");
-    setForm({ ...form, mataKuliah: "", kelas: "" });
-    load();
+    setMsg(null);
+    try {
+      await api("/schedules", { method: "POST", body: { ...form, hari: Number(form.hari) } });
+      setMsg({ type: "success", text: "Jadwal berhasil dibuat." });
+      setForm({ ...EMPTY_FORM, labId: form.labId, semester: form.semester });
+      setShowForm(false);
+      load();
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message });
+    }
   }
 
   async function remove(id: string) {
-    await fetch(`${API}/schedules/${id}`, { method: "DELETE", credentials: "include" });
-    load();
+    if (!window.confirm("Batalkan dan hapus jadwal ini?")) return;
+    try {
+      await api(`/schedules/${id}`, { method: "DELETE" });
+      setMsg({ type: "success", text: "Jadwal dihapus." });
+      load();
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message });
+    }
   }
 
+  const visible = dayFilter === "" ? schedules : schedules.filter((s) => s.hari === dayFilter);
   const grouped: Record<number, any[]> = {};
-  for (const s of schedules) { if (!grouped[s.hari]) grouped[s.hari] = []; grouped[s.hari].push(s); }
+  for (const s of visible) {
+    if (!grouped[s.hari]) grouped[s.hari] = [];
+    grouped[s.hari].push(s);
+  }
 
   return (
     <>
       <div className="page-header">
-        <div><h1 className="page-title">Jadwal Lab</h1><p className="page-subtitle">Kelola jadwal praktikum dan kegiatan</p></div>
+        <div>
+          <h1 className="page-title">Jadwal Lab</h1>
+          <p className="page-subtitle">Peta penggunaan lab per jam, praktikum rutin, dan kegiatan khusus.</p>
+        </div>
+        <div className="page-actions">
+          {canManage && (
+            <button className="btn" onClick={() => setShowForm((v) => !v)}>
+              <Icon name="plus" size={16} /> {showForm ? "Tutup form" : "Tambah jadwal"}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Tambah Jadwal</h3>
-        <form onSubmit={create} className="form-row">
-          <select className="input" value={form.labId} onChange={(e) => setForm({ ...form, labId: e.target.value })} required>
-            <option value="">Pilih lab</option>
-            {labs.map((l) => <option key={l.id} value={l.id}>{l.kode} - {l.nama}</option>)}
-          </select>
-          <input className="input" placeholder="Mata kuliah" value={form.mataKuliah} onChange={(e) => setForm({ ...form, mataKuliah: e.target.value })} required />
-          <input className="input" placeholder="Kelas" value={form.kelas} onChange={(e) => setForm({ ...form, kelas: e.target.value })} required />
-          <select className="input" value={form.hari} onChange={(e) => setForm({ ...form, hari: Number(e.target.value) })}>
-            {HARI.map((h, i) => <option key={i} value={i}>{h}</option>)}
-          </select>
-          <input className="input" type="time" value={form.jamMulai} onChange={(e) => setForm({ ...form, jamMulai: e.target.value })} required />
-          <input className="input" type="time" value={form.jamSelesai} onChange={(e) => setForm({ ...form, jamSelesai: e.target.value })} required />
-          <input className="input" type="date" value={form.tanggalMulai} onChange={(e) => setForm({ ...form, tanggalMulai: e.target.value })} required />
-          <input className="input" type="date" value={form.tanggalSelesai} onChange={(e) => setForm({ ...form, tanggalSelesai: e.target.value })} required />
-          <input className="input" placeholder="Semester (2026/1)" value={form.semester} onChange={(e) => setForm({ ...form, semester: e.target.value })} required />
-          <select className="input" value={form.pengampuId} onChange={(e) => setForm({ ...form, pengampuId: e.target.value })}>
-            <option value="">Pengampu (opsional)</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.nama}</option>)}
-          </select>
-          <select className="input" value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })}>
-            <option value="PRAKTIKUM_RUTIN">Praktikum Rutin</option>
-            <option value="KEGIATAN_KHUSUS">Kegiatan Khusus</option>
-          </select>
-          <button className="btn" type="submit" style={{ gridColumn: "1 / -1" }}>Simpan</button>
-        </form>
-        {msg && <div className="alert alert-info">{msg}</div>}
-      </div>
+      {msg && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 
-      <div style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <label>Filter lab:</label>
-        <select className="input" style={{ width: 240 }} value={filterLab} onChange={(e) => setFilterLab(e.target.value)}>
-          <option value="">Semua</option>
-          {labs.map((l) => <option key={l.id} value={l.id}>{l.kode} - {l.nama}</option>)}
-        </select>
-        <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <input type="checkbox" checked={myOnly} onChange={(e) => setMyOnly(e.target.checked)} />
-          Jadwal saya (sebagai pengampu)
-        </label>
-      </div>
-
-      {HARI.map((h, i) => {
-        const items = grouped[i] || [];
-        if (items.length === 0) return null;
-        return (
-          <div key={i} className="card" style={{ marginBottom: 16 }}>
-            <h3 className="card-title">{h}</h3>
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>Lab</th><th>Mata Kuliah</th><th>Kelas</th><th>Jam</th><th>Periode</th><th>Jenis</th><th></th></tr></thead>
-                <tbody>
-                  {items.map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.lab?.kode}</td>
-                      <td>{s.mataKuliah}</td>
-                      <td>{s.kelas}</td>
-                      <td>{s.jamMulai}-{s.jamSelesai}</td>
-                      <td>{new Date(s.tanggalMulai).toLocaleDateString("id-ID")} - {new Date(s.tanggalSelesai).toLocaleDateString("id-ID")}</td>
-                      <td><span className="badge badge-muted">{s.jenis}</span></td>
-                      <td><button className="btn btn-danger btn-sm" onClick={() => remove(s.id)}>Hapus</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {showForm && canManage && (
+        <div className="card reveal" style={{ marginBottom: 16 }}>
+          <div className="card-head">
+            <h2 className="card-title">Jadwal baru</h2>
+            <span className="badge badge-plain">semester aktif</span>
           </div>
-        );
-      })}
+          <form onSubmit={create} className="form-row">
+            <div className="field">
+              <label htmlFor="s-lab">Lab</label>
+              <select id="s-lab" value={form.labId} onChange={(e) => setForm({ ...form, labId: e.target.value })} required>
+                <option value="">Pilih lab</option>
+                {labs.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.kode} — {l.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="s-mk">Mata kuliah</label>
+              <input id="s-mk" className="input" value={form.mataKuliah} onChange={(e) => setForm({ ...form, mataKuliah: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label htmlFor="s-kelas">Kelas</label>
+              <input id="s-kelas" className="input" value={form.kelas} onChange={(e) => setForm({ ...form, kelas: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label htmlFor="s-hari">Hari</label>
+              <select id="s-hari" value={form.hari} onChange={(e) => setForm({ ...form, hari: Number(e.target.value) })}>
+                {HARI.map((h, i) => (
+                  <option key={i} value={i}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="s-mulai">Jam mulai</label>
+              <input id="s-mulai" className="input" type="time" value={form.jamMulai} onChange={(e) => setForm({ ...form, jamMulai: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label htmlFor="s-selesai">Jam selesai</label>
+              <input id="s-selesai" className="input" type="time" value={form.jamSelesai} onChange={(e) => setForm({ ...form, jamSelesai: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label htmlFor="s-dari">Mulai semester</label>
+              <input id="s-dari" className="input" type="date" value={form.tanggalMulai} onChange={(e) => setForm({ ...form, tanggalMulai: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label htmlFor="s-sampai">Akhir semester</label>
+              <input id="s-sampai" className="input" type="date" value={form.tanggalSelesai} onChange={(e) => setForm({ ...form, tanggalSelesai: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label htmlFor="s-semester">Semester</label>
+              <input id="s-semester" className="input" value={form.semester} onChange={(e) => setForm({ ...form, semester: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label htmlFor="s-pengampu">Pengampu</label>
+              <select id="s-pengampu" value={form.pengampuId} onChange={(e) => setForm({ ...form, pengampuId: e.target.value })}>
+                <option value="">Belum ditentukan</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="s-jenis">Jenis</label>
+              <select id="s-jenis" value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })}>
+                <option value="PRAKTIKUM_RUTIN">Praktikum rutin</option>
+                <option value="KEGIATAN_KHUSUS">Kegiatan khusus</option>
+              </select>
+            </div>
+            <div className="field" style={{ justifyContent: "flex-end" }}>
+              <button className="btn" type="submit">
+                Simpan jadwal
+              </button>
+            </div>
+          </form>
+          <p className="field-hint" style={{ marginTop: 10 }}>
+            Sistem menolak jadwal yang bentrok pada lab, hari, jam, dan rentang tanggal yang sama.
+          </p>
+        </div>
+      )}
+
+      <div className="card" style={{ marginBottom: 16, padding: "14px 16px" }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div className="field" style={{ minWidth: 220 }}>
+            <label htmlFor="filter-lab">Lab</label>
+            <select id="filter-lab" value={filterLab} onChange={(e) => setFilterLab(e.target.value)}>
+              <option value="">Semua lab</option>
+              {labs.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.kode} — {l.nama}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field" style={{ minWidth: 160 }}>
+            <label htmlFor="filter-hari">Hari</label>
+            <select id="filter-hari" value={dayFilter} onChange={(e) => setDayFilter(e.target.value === "" ? "" : Number(e.target.value))}>
+              <option value="">Semua hari</option>
+              {HARI.map((h, i) => (
+                <option key={i} value={i}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 18, fontSize: 13 }}>
+            <input type="checkbox" checked={myOnly} onChange={(e) => setMyOnly(e.target.checked)} />
+            Jadwal saya
+          </label>
+          <div style={{ marginLeft: "auto", marginTop: 18 }} className="chip-row">
+            <button className={`chip ${view === "grid" ? "is-active" : ""}`} onClick={() => setView("grid")} type="button">
+              <Icon name="calendar" size={13} /> Peta
+            </button>
+            <button className={`chip ${view === "list" ? "is-active" : ""}`} onClick={() => setView("list")} type="button">
+              <Icon name="report" size={13} /> Daftar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="card">
+          {[0, 1, 2].map((i) => (
+            <div className="skeleton" key={i} style={{ height: 40, marginBottom: 8 }} />
+          ))}
+        </div>
+      ) : view === "grid" ? (
+        <>
+          {dayFilter === "" ? (
+            <div style={{ display: "grid", gap: 14 }}>
+              {HARI.map((h, i) => {
+                const items = grouped[i] || [];
+                if (items.length === 0) return null;
+                return (
+                  <div key={i}>
+                    <div className="section-head" style={{ marginBottom: 8 }}>
+                      <h2 className="section-title" style={{ fontSize: 15 }}>
+                        {h}
+                      </h2>
+                      <span className="badge badge-plain">{items.length} sesi</span>
+                    </div>
+                    <ScheduleGrid schedules={items} labs={labs} />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <ScheduleGrid schedules={visible} labs={labs} emptyLabel={`Tidak ada jadwal pada hari ${HARI[dayFilter]}`} />
+          )}
+        </>
+      ) : (
+        <>
+          {HARI.map((h, i) => {
+            const items = grouped[i] || [];
+            if (items.length === 0) return null;
+            return (
+              <div key={i} className="card card-flush" style={{ marginBottom: 14 }}>
+                <div className="card-head">
+                  <h2 className="card-title">{h}</h2>
+                  <span className="badge badge-plain">{items.length} sesi</span>
+                </div>
+                <div className="table-wrap" style={{ border: "none", borderRadius: 0 }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Lab</th>
+                        <th>Mata kuliah</th>
+                        <th>Kelas</th>
+                        <th>Jam</th>
+                        <th>Pengampu</th>
+                        <th>Jenis</th>
+                        <th>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((s) => (
+                        <tr key={s.id}>
+                          <td className="num">{s.lab?.kode}</td>
+                          <td>{s.mataKuliah}</td>
+                          <td>{s.kelas}</td>
+                          <td className="num">
+                            {s.jamMulai}–{s.jamSelesai}
+                          </td>
+                          <td>{s.pengampu?.nama || "—"}</td>
+                          <td>
+                            <span className={`badge ${s.jenis === "PRAKTIKUM_RUTIN" ? "badge-success" : "badge-info"}`}>
+                              {s.jenis === "PRAKTIKUM_RUTIN" ? "praktikum" : "kegiatan"}
+                            </span>
+                          </td>
+                          <td>
+                            {canManage && (
+                              <button className="btn btn-danger btn-sm" onClick={() => remove(s.id)}>
+                                Hapus
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {!loading && visible.length === 0 && (
+        <div className="card">
+          <div className="empty">
+            <Icon name="calendar" size={26} />
+            <p className="empty-title">Tidak ada jadwal yang cocok</p>
+            <p className="empty-text">Ubah filter lab atau hari untuk melihat sesi lain.</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -17,4 +17,7 @@ export class NotificationsController {
 
   @Patch(":id/read")
   read(@Param("id") id: string, @Req() req: Request) { return this.svc.markRead(id, (req as any).user.sub); }
+
+  @Patch("read-all")
+  readAll(@Req() req: Request) { return this.svc.markAllRead((req as any).user.sub); }
 }

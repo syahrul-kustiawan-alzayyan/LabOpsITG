@@ -26,3 +26,12 @@ Thumbs.db
 # Prisma
 prisma/*.db
 prisma/*.db-journal
+
+# Turbo cache
+.turbo
+
+# Playwright
+test-results
+playwright-report
+blob-report
+playwright/.cache
