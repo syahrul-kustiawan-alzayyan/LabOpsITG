@@ -171,18 +171,18 @@ export default function AuditPage() {
                 return (
                   <Fragment key={l.id}>
                     <tr>
-                      <td className="num" style={{ fontSize: 13, whiteSpace: "nowrap" }}>
+                      <td className="num" style={{ fontSize: 14.5, whiteSpace: "nowrap" }}>
                         {new Date(l.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </td>
                       <td>
                         <div style={{ fontWeight: 500 }}>{l.actor?.nama || "Sistem"}</div>
-                        <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>{l.actor?.email || "—"}</div>
+                        <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>{l.actor?.email || "—"}</div>
                       </td>
                       <td>
                         <span className="badge badge-plain">{ACTION_LABEL[l.action] || l.action}</span>
                       </td>
                       <td>{OBJECT_LABEL[l.objectType] || l.objectType}</td>
-                      <td className="num" style={{ fontSize: 12 }}>
+                      <td className="num" style={{ fontSize: 13.5 }}>
                         {l.objectId?.slice(0, 12)}…
                       </td>
                       <td>
@@ -201,7 +201,7 @@ export default function AuditPage() {
                               <div className="stat-label" style={{ marginBottom: 4 }}>
                                 Nilai sebelumnya
                               </div>
-                              <pre style={{ margin: 0, fontSize: 12, background: "var(--surface-2)", padding: 8, borderRadius: 5, maxHeight: 180, overflow: "auto" }}>
+                              <pre style={{ margin: 0, fontSize: 13.5, background: "var(--surface-2)", padding: 8, borderRadius: 5, maxHeight: 180, overflow: "auto" }}>
                                 {l.oldValue ? JSON.stringify(l.oldValue, null, 2) : "—"}
                               </pre>
                             </div>
@@ -209,7 +209,7 @@ export default function AuditPage() {
                               <div className="stat-label" style={{ marginBottom: 4 }}>
                                 Nilai sesudahnya
                               </div>
-                              <pre style={{ margin: 0, fontSize: 12, background: "var(--surface-2)", padding: 8, borderRadius: 5, maxHeight: 180, overflow: "auto" }}>
+                              <pre style={{ margin: 0, fontSize: 13.5, background: "var(--surface-2)", padding: 8, borderRadius: 5, maxHeight: 180, overflow: "auto" }}>
                                 {l.newValue ? JSON.stringify(l.newValue, null, 2) : "—"}
                               </pre>
                             </div>

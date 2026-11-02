@@ -284,7 +284,7 @@ export default function BookingsPage() {
             {STATUS.map((s) => (
               <div key={s} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span className={`badge ${STATUS_BADGE[s]}`}>{STATUS_LABEL[s]}</span>
-                <span className="num" style={{ fontFamily: "var(--font-mono)", fontSize: 14 }}>
+                <span className="num" style={{ fontFamily: "var(--font-mono)", fontSize: 15.5 }}>
                   {counts[s] || 0}
                 </span>
               </div>
@@ -401,7 +401,7 @@ export default function BookingsPage() {
               <Icon name="close" size={16} />
             </button>
           </div>
-          <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
+          <div style={{ display: "grid", gap: 6, fontSize: 15.5 }}>
             <div>
               <strong>Peminjam:</strong> {detail.peminjam?.nama} ({detail.peminjam?.email})
             </div>

@@ -179,20 +179,20 @@ export default function ProdiPage() {
                         <div className="num" style={{ fontWeight: 600 }}>
                           {lab.kode}
                         </div>
-                        <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>{labDisplayName(lab.nama, lab.kode)}</div>
+                        <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>{labDisplayName(lab.nama, lab.kode)}</div>
                       </td>
                       <td>
                         {rate === null ? (
-                          <span style={{ color: "var(--ink-soft)", fontSize: 13 }}>belum ada data</span>
+                          <span style={{ color: "var(--ink-soft)", fontSize: 14.5 }}>belum ada data</span>
                         ) : (
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <div style={{ width: 70, height: 6, background: "var(--surface-2)", borderRadius: 999, overflow: "hidden" }}>
                               <div style={{ width: `${rate}%`, height: "100%", background: rate >= 80 ? "var(--ok)" : "var(--signal)" }} />
                             </div>
-                            <span className="num" style={{ fontSize: 13 }}>
+                            <span className="num" style={{ fontSize: 14.5 }}>
                               {rate}%
                             </span>
-                            <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                            <span style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>
                               ({att!.hadir}/{att!.total})
                             </span>
                           </div>
@@ -234,7 +234,7 @@ export default function ProdiPage() {
                   return (
                     <div key={i.id} className="notif" style={{ cursor: "default" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                        <strong style={{ fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{i.nomorTiket}</strong>
+                        <strong style={{ fontFamily: "var(--font-mono)", fontSize: 14 }}>{i.nomorTiket}</strong>
                         <span className={`badge ${i.urgensi === "TINGGI" ? "badge-danger" : i.urgensi === "SEDANG" ? "badge-warning" : "badge-muted"}`}>
                           {i.urgensi.toLowerCase()}
                         </span>

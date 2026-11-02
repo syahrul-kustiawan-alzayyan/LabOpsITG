@@ -245,7 +245,7 @@ export function ScheduleGrid({
             Peminjaman disetujui
           </span>
         )}
-        <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>
+        <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: 14 }}>
           {rows.length} lab · {HOURS[0]}:00–{END_HOUR}:00
         </span>
       </div>

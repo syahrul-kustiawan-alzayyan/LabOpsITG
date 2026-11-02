@@ -255,7 +255,7 @@ export default function StaffPage() {
                   <td>{s.mataKuliah}</td>
                   <td>{s.kelas}</td>
                   <td>{s.pengampu?.nama || <span style={{ color: "var(--danger)" }}>belum ada</span>}</td>
-                  <td style={{ fontSize: 13.5 }}>{(s.asisten || []).map((a: any) => a.nama).join(", ") || "—"}</td>
+                  <td style={{ fontSize: 15 }}>{(s.asisten || []).map((a: any) => a.nama).join(", ") || "—"}</td>
                   {isCoord && (
                     <td>
                       <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>

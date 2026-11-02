@@ -463,11 +463,11 @@ export default function IssuesPage() {
                       <button className="btn btn-ghost btn-sm" style={{ paddingLeft: 0, fontFamily: "var(--font-mono)" }} onClick={() => openDetail(iss.id)}>
                         {iss.nomorTiket}
                       </button>
-                      <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{iss.pelapor?.nama}</div>
+                      <div style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>{iss.pelapor?.nama}</div>
                     </td>
                     <td style={{ maxWidth: 340 }}>
                       <div style={{ fontWeight: 500 }}>{iss.deskripsi}</div>
-                      <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
+                      <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>
                         {KATEGORI.find((k) => k.value === iss.kategori)?.label || iss.kategori}
                         {iss.penanggungJawab?.nama ? ` · PJ ${iss.penanggungJawab.nama}` : ""}
                       </div>
@@ -570,11 +570,11 @@ export default function IssuesPage() {
                 </div>
                 <div>
                   <div className="stat-label">Penanggung jawab</div>
-                  <div style={{ fontSize: 14 }}>{detail.penanggungJawab?.nama || "belum ditugaskan"}</div>
+                  <div style={{ fontSize: 15.5 }}>{detail.penanggungJawab?.nama || "belum ditugaskan"}</div>
                 </div>
                 <div>
                   <div className="stat-label">Item inventaris</div>
-                  <div style={{ fontSize: 14 }}>{detail.item ? `${detail.item.kodeAset} — ${detail.item.nama}` : "—"}</div>
+                  <div style={{ fontSize: 15.5 }}>{detail.item ? `${detail.item.kodeAset} — ${detail.item.nama}` : "—"}</div>
                 </div>
               </div>
 
@@ -588,18 +588,18 @@ export default function IssuesPage() {
                 </div>
               )}
 
-              <h4 style={{ fontSize: 14, margin: "0 0 8px" }}>Riwayat</h4>
+              <h4 style={{ fontSize: 15.5, margin: "0 0 8px" }}>Riwayat</h4>
               <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
                 {(detail.history || []).map((h: any) => (
-                  <li key={h.id} style={{ fontSize: 13.5 }}>
+                  <li key={h.id} style={{ fontSize: 15 }}>
                     <strong>{STATUS_LABEL[h.status] || h.status}</strong> · {h.actorNama || "Sistem"}
-                    <span style={{ display: "block", color: "var(--ink-soft)", fontSize: 12.5 }}>
+                    <span style={{ display: "block", color: "var(--ink-soft)", fontSize: 14 }}>
                       {new Date(h.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       {h.catatan ? ` — ${h.catatan}` : ""}
                     </span>
                   </li>
                 ))}
-                {(detail.history || []).length === 0 && <li style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>Belum ada riwayat.</li>}
+                {(detail.history || []).length === 0 && <li style={{ fontSize: 15, color: "var(--ink-soft)" }}>Belum ada riwayat.</li>}
               </ol>
 
               <div className="table-actions" style={{ marginTop: 14 }}>

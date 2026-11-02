@@ -224,7 +224,7 @@ export default function SchedulesPage() {
               ))}
             </select>
           </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 18, fontSize: 14 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 18, fontSize: 15.5 }}>
             <input type="checkbox" checked={myOnly} onChange={(e) => setMyOnly(e.target.checked)} />
             Jadwal saya
           </label>

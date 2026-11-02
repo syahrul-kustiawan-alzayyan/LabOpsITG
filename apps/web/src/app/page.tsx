@@ -86,7 +86,7 @@ export default function LandingPage() {
               Lihat jadwal publik
             </a>
           </div>
-          <div style={{ display: "flex", gap: 22, marginTop: 26, flexWrap: "wrap", fontSize: 13, color: "var(--ink-soft)" }}>
+          <div style={{ display: "flex", gap: 22, marginTop: 26, flexWrap: "wrap", fontSize: 14.5, color: "var(--ink-soft)" }}>
             <span>
               <strong style={{ fontFamily: "var(--font-mono)", fontSize: 15, color: "var(--ink)" }}>{labs.length}</strong> lab aktif
             </span>
@@ -189,7 +189,7 @@ export default function LandingPage() {
         <div className="feature-grid">
           {STEPS.map((s) => (
             <article className="feature" key={s.n}>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--petrol-600)", marginBottom: 8 }}>{s.n}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 13.5, color: "var(--petrol-600)", marginBottom: 8 }}>{s.n}</div>
               <h3>{s.title}</h3>
               <p>{s.desc}</p>
             </article>
@@ -213,7 +213,7 @@ export default function LandingPage() {
         >
           <div>
             <h2 style={{ color: "#fff", fontSize: 22, margin: "0 0 6px" }}>Butuh lab di luar jadwal praktikum?</h2>
-            <p style={{ margin: 0, color: "#9fb6b0", fontSize: 14 }}>
+            <p style={{ margin: 0, color: "#9fb6b0", fontSize: 15.5 }}>
               Masuk dengan akun kampus, pilih slot, dan pantau persetujuan koordinator.
             </p>
           </div>

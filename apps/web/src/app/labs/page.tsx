@@ -235,19 +235,19 @@ export default function LabsPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   <div>
                     <div className="stat-label">Lokasi</div>
-                    <div style={{ fontSize: 14 }}>{labRoom(lab.nama, lab.lokasi)}</div>
+                    <div style={{ fontSize: 15.5 }}>{labRoom(lab.nama, lab.lokasi)}</div>
                   </div>
                   <div>
                     <div className="stat-label">Kapasitas</div>
-                    <div style={{ fontSize: 14, fontFamily: "var(--font-mono)" }}>{lab.kapasitas} kursi</div>
+                    <div style={{ fontSize: 15.5, fontFamily: "var(--font-mono)" }}>{lab.kapasitas} kursi</div>
                   </div>
                   <div>
                     <div className="stat-label">Sesi terjadwal</div>
-                    <div style={{ fontSize: 14, fontFamily: "var(--font-mono)" }}>{st.sessions}</div>
+                    <div style={{ fontSize: 15.5, fontFamily: "var(--font-mono)" }}>{st.sessions}</div>
                   </div>
                   <div>
                     <div className="stat-label">Aset / bermasalah</div>
-                    <div style={{ fontSize: 14, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ fontSize: 15.5, fontFamily: "var(--font-mono)" }}>
                       {st.assets} <span style={{ color: st.broken ? "var(--signal)" : "var(--ink-soft)" }}>/ {st.broken}</span>
                     </div>
                   </div>
@@ -261,7 +261,7 @@ export default function LabsPage() {
                     <code
                       style={{
                         fontFamily: "var(--font-mono)",
-                        fontSize: 12,
+                        fontSize: 13.5,
                         background: "var(--surface-2)",
                         padding: "4px 7px",
                         borderRadius: 4,
