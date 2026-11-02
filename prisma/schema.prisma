@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  COORDINATOR
+  LEADER
+  ADMIN_SYSTEM
+}
+
+enum SubRole {
+  DOSEN
+  MAHASISWA
+  INSTRUKTUR
+  ASISTEN_DOSEN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LabStatus {
+  AKTIF
+  NONAKTIF
+}
+
+enum ScheduleType {
+  PRAKTIKUM_RUTIN
+  KEGIATAN_KHUSUS
+}
+
+enum ScheduleStatus {
+  AKTIF
+  DIBATALKAN
+}
+
+enum BookingStatus {
+  DIAJUKAN
+  DISETUJUI
+  DITOLAK
+  DIBATALKAN
+  SELESAI
+}
+
+enum IssueCategory {
+  PERANGKAT
+  JARINGAN
+  LISTRIK
+  PERANGKAT_LUNAK
+  FASILITAS
+  LAINNYA
+}
+
+enum IssueUrgency {
+  RENDAH
+  SEDANG
+  TINGGI
+}
+
+enum IssueStatus {
+  BARU
+  DIVERIFIKASI
+  DALAM_PENANGANAN
+  SELESAI
+  DITOLAK
+}
+
+enum AttendanceStatus {
+  HADIR
+  TERLAMBAT
+  IZIN
+  SAKIT
+  TIDAK_HADIR
+}
+
+enum InventoryCondition {
+  BAIK
+  PERLU_PERAWATAN
+  RUSAK
+  DIHAPUSKAN
+}
+
+enum InventoryCategory {
+  PC
+  JARINGAN
+  PERIFERAL
+  PERANGKAT_PENDUKUNG
+}
+
+enum RecruitmentStatus {
+  DIBUKA
+  DITUTUP
+}
+
+enum ApplicationStatus {
+  DIAJUKAN
+  DIPROSES
+  WAWANCARA
+  DITERIMA
+  DITOLAK
+  CADANGAN
+}
+
+model User {
+  id           String     @id @default(cuid())
+  nama         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(USER)
+  subRoles     SubRole[]
+  status       UserStatus @default(ACTIVE)
+  deletedAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  schedulesAsPengampu Schedule[] @relation("Pengampu")
+  bookings            Booking[]  @relation("Peminjam")
+  processedBookings   Booking[]  @relation("Pemroses")
+  issues              Issue[]    @relation("Pelapor")
+  assignedIssues      Issue[]    @relation("PenanggungJawab")
+  attendances         Attendance[]
+  applications        Application[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+}
+
+model Lab {
+  id        String    @id @default(cuid())
+  kode      String    @unique
+  nama      String
+  kapasitas Int
+  lokasi    String
+  status    LabStatus @default(AKTIF)
+  qrToken   String    @unique
+  qrVersion Int       @default(1)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  schedules  Schedule[]
+  bookings   Booking[]
+  issues     Issue[]
+  attendances Attendance[]
+  inventory  InventoryItem[]
+}
+
+model Schedule {
+  id            String         @id @default(cuid())
+  labId         String
+  mataKuliah    String
+  kelas         String
+  pengampuId    String?
+  asistenIds    String[]  @default([])
+  hari          Int
+  jamMulai      String
+  jamSelesai    String
+  tanggalMulai  DateTime
+  tanggalSelesai DateTime
+  semester      String
+  jenis         ScheduleType   @default(PRAKTIKUM_RUTIN)
+  status        ScheduleStatus @default(AKTIF)
+  deletedAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  lab       Lab   @relation(fields: [labId], references: [id])
+  pengampu  User? @relation("Pengampu", fields: [pengampuId], references: [id])
+  bookings  Booking[]
+  attendances Attendance[]
+
+  @@index([labId, hari, jamMulai])
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  peminjamId      String
+  labId           String
+  scheduleId      String?
+  tanggal         DateTime
+  jamMulai        String
+  jamSelesai      String
+  keperluan       String
+  jumlahPeserta   Int?
+  kebutuhanKhusus String?
+  lampiranUrl     String?
+  status          BookingStatus @default(DIAJUKAN)
+  pemrosesId      String?
+  alasanKeputusan String?
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  peminjam  User      @relation("Peminjam", fields: [peminjamId], references: [id])
+  lab       Lab       @relation(fields: [labId], references: [id])
+  schedule  Schedule? @relation(fields: [scheduleId], references: [id])
+  pemroses  User?     @relation("Pemroses", fields: [pemrosesId], references: [id])
+
+  @@index([labId, tanggal, jamMulai])
+}
+
+model Issue {
+  id               String        @id @default(cuid())
+  nomorTiket       String        @unique
+  pelaporId        String
+  labId            String
+  itemId           String?
+  kategori         IssueCategory
+  urgensi          IssueUrgency  @default(SEDANG)
+  deskripsi        String
+  fotoUrls         String[]
+  status           IssueStatus   @default(BARU)
+  penanggungJawabId String?
+  deletedAt        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  pelapor          User           @relation("Pelapor", fields: [pelaporId], references: [id])
+  lab              Lab            @relation(fields: [labId], references: [id])
+  item             InventoryItem? @relation(fields: [itemId], references: [id])
+  penanggungJawab  User?          @relation("PenanggungJawab", fields: [penanggungJawabId], references: [id])
+  history          IssueHistory[]
+}
+
+model IssueHistory {
+  id        String      @id @default(cuid())
+  issueId   String
+  status    IssueStatus
+  catatan   String?
+  actorId   String
+  createdAt DateTime    @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id               String           @id @default(cuid())
+  sesiId           String
+  userId           String
+  labId            String
+  scannedAt        DateTime         @default(now())
+  status           AttendanceStatus
+  qrTokenScanned   String
+  correctedBy      String?
+  correctionReason String?
+  oldValue         String?
+  deletedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  sesi  Schedule @relation(fields: [sesiId], references: [id])
+  user  User     @relation(fields: [userId], references: [id])
+  lab   Lab      @relation(fields: [labId], references: [id])
+
+  @@unique([sesiId, userId])
+}
+
+model InventoryItem {
+  id             String             @id @default(cuid())
+  kodeAset       String             @unique
+  nama           String
+  kategori       InventoryCategory
+  labId          String
+  kondisi        InventoryCondition @default(BAIK)
+  tanggalPerolehan DateTime?
+  catatan        String?
+  deletedAt      DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  lab        Lab                @relation(fields: [labId], references: [id])
+  issues     Issue[]
+  mutations  InventoryMutation[]
+}
+
+model InventoryMutation {
+  id          String   @id @default(cuid())
+  itemId      String
+  labAsalId   String
+  labTujuanId String
+  tanggal     DateTime @default(now())
+  actorId     String
+
+  item InventoryItem @relation(fields: [itemId], references: [id])
+}
+
+model RecruitmentPeriod {
+  id          String            @id @default(cuid())
+  posisi      String
+  mataKuliah  String
+  kuota       Int
+  persyaratan String?
+  tenggat     DateTime
+  status      RecruitmentStatus @default(DIBUKA)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  applications Application[]
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  periodId        String
+  pelamarId       String
+  mataKuliahDilamar String
+  motivasi        String?
+  nilai           Float?
+  ketersediaan    String?
+  cvUrl           String?
+  transkripUrl    String?
+  status          ApplicationStatus @default(DIAJUKAN)
+  catatanPenilaian String?
+  deletedAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  period  RecruitmentPeriod @relation(fields: [periodId], references: [id])
+  pelamar User              @relation(fields: [pelamarId], references: [id])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  recipientId String
+  jenis      String
+  isi        String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  recipient User @relation(fields: [recipientId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  objectType String
+  objectId  String
+  oldValue  Json?
+  newValue  Json?
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+}

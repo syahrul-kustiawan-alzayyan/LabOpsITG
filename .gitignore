@@ -1,0 +1,28 @@
+﻿# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+.next
+dist
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Uploads (user files)
+uploads
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
