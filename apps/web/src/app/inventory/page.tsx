@@ -357,7 +357,7 @@ export default function InventoryPage() {
                   </td>
                   <td>
                     <div>{it.nama}</div>
-                    {it.catatan && <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>{it.catatan}</div>}
+                    {it.catatan && <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>{it.catatan}</div>}
                   </td>
                   <td>{it.kategori.replaceAll("_", " ").toLowerCase()}</td>
                   <td className="num">{it.lab?.kode}</td>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Icon } from "@/components/Icon";
+import { labDisplayName, labRoom } from "@/lib/lab-label";
 
 const EMPTY = { kode: "", nama: "", kapasitas: 30, lokasi: "" };
 
@@ -216,7 +217,7 @@ export default function LabsPage() {
           ))}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {labs.map((lab) => {
             const st = stats[lab.id] || { sessions: 0, assets: 0, broken: 0 };
             return (
@@ -226,7 +227,7 @@ export default function LabsPage() {
                     <h2 className="card-title" style={{ fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>
                       {lab.kode}
                     </h2>
-                    <p className="card-note">{lab.nama}</p>
+                    <p className="card-note">{labDisplayName(lab.nama, lab.kode)}</p>
                   </div>
                   <span className={`badge ${lab.status === "AKTIF" ? "badge-success" : "badge-muted"}`}>{lab.status.toLowerCase()}</span>
                 </div>
@@ -234,19 +235,19 @@ export default function LabsPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   <div>
                     <div className="stat-label">Lokasi</div>
-                    <div style={{ fontSize: 13 }}>{lab.lokasi}</div>
+                    <div style={{ fontSize: 14 }}>{labRoom(lab.nama, lab.lokasi)}</div>
                   </div>
                   <div>
                     <div className="stat-label">Kapasitas</div>
-                    <div style={{ fontSize: 13, fontFamily: "var(--font-mono)" }}>{lab.kapasitas} kursi</div>
+                    <div style={{ fontSize: 14, fontFamily: "var(--font-mono)" }}>{lab.kapasitas} kursi</div>
                   </div>
                   <div>
                     <div className="stat-label">Sesi terjadwal</div>
-                    <div style={{ fontSize: 13, fontFamily: "var(--font-mono)" }}>{st.sessions}</div>
+                    <div style={{ fontSize: 14, fontFamily: "var(--font-mono)" }}>{st.sessions}</div>
                   </div>
                   <div>
                     <div className="stat-label">Aset / bermasalah</div>
-                    <div style={{ fontSize: 13, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ fontSize: 14, fontFamily: "var(--font-mono)" }}>
                       {st.assets} <span style={{ color: st.broken ? "var(--signal)" : "var(--ink-soft)" }}>/ {st.broken}</span>
                     </div>
                   </div>
@@ -260,7 +261,7 @@ export default function LabsPage() {
                     <code
                       style={{
                         fontFamily: "var(--font-mono)",
-                        fontSize: 11,
+                        fontSize: 12,
                         background: "var(--surface-2)",
                         padding: "4px 7px",
                         borderRadius: 4,

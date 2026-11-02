@@ -39,4 +39,31 @@ test.describe("Tampilan responsif", () => {
     const overflowX = await wrap.evaluate((el) => getComputedStyle(el).overflowX);
     expect(["auto", "scroll"]).toContain(overflowX);
   });
+
+  test("kartu ringkasan dan formulir dua kolom tidak bertumpuk", async ({ page }) => {
+    await login(page, "koordinator");
+
+    const stats = page.locator(".ops-stat");
+    await expect(stats.first()).toBeVisible();
+    const positions = await stats.first().evaluate((el) => {
+      const value = el.querySelector(".ops-stat-value");
+      const note = el.querySelector(".ops-stat-note");
+      if (!value || !note) return null;
+      const v = value.getBoundingClientRect();
+      const n = note.getBoundingClientRect();
+      return { valueBottom: v.bottom, noteTop: n.top };
+    });
+    expect(positions, "setiap kartu harus punya nilai dan keterangan").not.toBeNull();
+    expect(positions!.noteTop, "keterangan harus berada di bawah nilai").toBeGreaterThanOrEqual(
+      positions!.valueBottom - 1,
+    );
+
+    await page.goto("/bookings");
+    const columns = await page
+      .locator(".split")
+      .first()
+      .evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+    expect(columns.trim().split(/\s+/), "formulir harus satu kolom di ponsel").toHaveLength(1);
+    await assertNoHorizontalOverflow(page);
+  });
 });

@@ -154,7 +154,7 @@ export default function NotificationsPage() {
                     <Icon name={n.isRead ? "bell" : "alert"} size={14} />
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13 }}>{n.isi}</div>
+                    <div style={{ fontSize: 14 }}>{n.isi}</div>
                     <div className="notif-meta">
                       <span>{hint}</span>
                       <span>{new Date(n.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>

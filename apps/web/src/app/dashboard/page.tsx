@@ -181,7 +181,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
         <div className="card card-flush">
           <div className="card-head">
             <div>
@@ -263,8 +263,8 @@ export default function DashboardPage() {
               {todayBookings.map((b) => (
                 <div key={b.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                   <div>
-                    <div style={{ fontSize: 13 }}>{b.keperluan}</div>
-                    <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>
+                    <div style={{ fontSize: 14 }}>{b.keperluan}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
                       {b.lab?.kode} · {b.jamMulai}–{b.jamSelesai}
                     </div>
                   </div>

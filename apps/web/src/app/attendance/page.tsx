@@ -125,7 +125,7 @@ export default function AttendancePage() {
 
       {msg && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.2fr)", gap: 16, alignItems: "start" }}>
+      <div className="split-even">
         <div className="card">
           <h2 className="card-title">Scan kehadiran</h2>
           <p className="card-note" style={{ marginBottom: 12 }}>
@@ -195,8 +195,8 @@ export default function AttendancePage() {
             ) : (
               today.sessions.map((s: any) => (
                 <div key={s.id} className="notif" style={{ cursor: "default" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                    <div>
+                  <div className="session-item">
+                    <div className="session-main">
                       <strong>{s.mataKuliah}</strong>
                       <div className="notif-meta">
                         <span>
@@ -206,7 +206,7 @@ export default function AttendancePage() {
                       </div>
                     </div>
                     {isCoord && (
-                      <div style={{ display: "flex", gap: 4 }}>
+                      <div className="session-actions">
                         <button className="btn btn-sm" onClick={() => makeToken(s.id)}>
                           <Icon name="qr" size={13} /> QR
                         </button>

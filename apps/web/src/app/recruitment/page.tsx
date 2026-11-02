@@ -208,7 +208,7 @@ export default function RecruitmentPage() {
       </div>
 
       {tab === "periods" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {loading ? (
             <div className="card">
               <div className="skeleton" style={{ width: "40%" }} />
@@ -246,16 +246,16 @@ export default function RecruitmentPage() {
                     </div>
                     <div>
                       <div className="stat-label">Tenggat</div>
-                      <div style={{ fontSize: 13 }}>{new Date(p.tenggat).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</div>
+                      <div style={{ fontSize: 14 }}>{new Date(p.tenggat).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</div>
                     </div>
                     <div>
                       <div className="stat-label">Sisa waktu</div>
-                      <div style={{ fontSize: 13, color: !closed && remaining <= 3 ? "var(--signal)" : undefined }}>
+                      <div style={{ fontSize: 14, color: !closed && remaining <= 3 ? "var(--signal)" : undefined }}>
                         {closed ? "ditutup" : remaining >= 0 ? `${remaining} hari` : "lewat tenggat"}
                       </div>
                     </div>
                   </div>
-                  {p.persyaratan && <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>{p.persyaratan}</p>}
+                  {p.persyaratan && <p style={{ fontSize: 13.5, color: "var(--ink-soft)", margin: 0 }}>{p.persyaratan}</p>}
                   {!closed && (
                     <button className="btn btn-sm" style={{ marginTop: "auto" }} onClick={() => { setTab("apply"); pickPeriod(p.id); }}>
                       <Icon name="recruitment" size={14} /> Lamar posisi ini
@@ -375,8 +375,8 @@ export default function RecruitmentPage() {
                     <td>
                       <span className={`badge ${STATUS_BADGE[a.status] || "badge-muted"}`}>{STATUS_LABEL[a.status] || a.status}</span>
                     </td>
-                    <td style={{ fontSize: 12.5 }}>{a.catatanPenilaian || "—"}</td>
-                    <td className="num" style={{ fontSize: 12 }}>
+                    <td style={{ fontSize: 13.5 }}>{a.catatanPenilaian || "—"}</td>
+                    <td className="num" style={{ fontSize: 13 }}>
                       {new Date(a.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
                     </td>
                   </tr>
@@ -500,7 +500,7 @@ export default function RecruitmentPage() {
                       <tr key={a.id}>
                         <td>
                           <div>{a.pelamar?.nama}</div>
-                          <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>{a.pelamar?.email}</div>
+                          <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>{a.pelamar?.email}</div>
                         </td>
                         <td>{a.period?.posisi}</td>
                         <td>{a.mataKuliahDilamar}</td>

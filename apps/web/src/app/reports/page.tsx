@@ -41,7 +41,7 @@ function Breakdown({ title, data, total }: { title: string; data: Record<string,
           const pct = total > 0 ? Math.round((n / total) * 100) : 0;
           return (
             <div key={key}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 3 }}>
                 <span>{label(key)}</span>
                 <span style={{ fontFamily: "var(--font-mono)" }}>
                   {n} <span style={{ color: "var(--ink-soft)" }}>({pct}%)</span>
@@ -273,7 +273,7 @@ export default function ReportsPage() {
                         <div style={{ flex: 1, height: 6, background: "var(--surface-2)", borderRadius: 999, overflow: "hidden" }}>
                           <div style={{ width: `${pct}%`, height: "100%", background: k === "HADIR" || k === "TERLAMBAT" ? "var(--ok)" : "var(--signal)" }} />
                         </div>
-                        <span className="num" style={{ fontSize: 12 }}>
+                        <span className="num" style={{ fontSize: 13 }}>
                           {pct}%
                         </span>
                       </div>

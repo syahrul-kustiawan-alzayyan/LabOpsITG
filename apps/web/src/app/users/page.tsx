@@ -292,7 +292,7 @@ export default function UsersPage() {
               visible.map((u) => (
                 <tr key={u.id}>
                   <td style={{ fontWeight: 500 }}>{u.nama}</td>
-                  <td className="num" style={{ fontSize: 12 }}>
+                  <td className="num" style={{ fontSize: 13 }}>
                     {u.email}
                   </td>
                   <td>
@@ -301,7 +301,7 @@ export default function UsersPage() {
                   <td>
                     <div className="chip-row">
                       {(u.subRoles || []).length === 0 ? (
-                        <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>—</span>
+                        <span style={{ color: "var(--ink-soft)", fontSize: 13 }}>—</span>
                       ) : (
                         u.subRoles.map((s: string) => (
                           <span key={s} className="badge badge-plain">
@@ -314,7 +314,7 @@ export default function UsersPage() {
                   <td>
                     <span className={`badge ${u.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}>{u.status === "ACTIVE" ? "aktif" : "nonaktif"}</span>
                   </td>
-                  <td className="num" style={{ fontSize: 12 }}>
+                  <td className="num" style={{ fontSize: 13 }}>
                     {new Date(u.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
                   </td>
                   <td>

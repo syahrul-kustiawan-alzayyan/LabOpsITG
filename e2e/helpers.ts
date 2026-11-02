@@ -33,7 +33,9 @@ export function unique(prefix: string) {
 /** Tanggal jauh di masa depan agar tidak bentrok dengan jadwal semester berjalan. */
 export function futureDate(daysAhead = 240) {
   const d = new Date();
-  d.setDate(d.getDate() + daysAhead);
+  // Sebar tanggal per proses agar pengujian berulang tidak memakai slot yang
+  // sama dengan peminjaman yang sudah disetujui pada run sebelumnya.
+  d.setDate(d.getDate() + daysAhead + (Date.now() % 365));
   return d.toISOString().slice(0, 10);
 }
 

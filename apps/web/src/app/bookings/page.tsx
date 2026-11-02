@@ -213,7 +213,7 @@ export default function BookingsPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
+      <div className="split">
         <div className="card card-flush">
           <div className="card-head">
             <div>
@@ -284,7 +284,7 @@ export default function BookingsPage() {
             {STATUS.map((s) => (
               <div key={s} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span className={`badge ${STATUS_BADGE[s]}`}>{STATUS_LABEL[s]}</span>
-                <span className="num" style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>
+                <span className="num" style={{ fontFamily: "var(--font-mono)", fontSize: 14 }}>
                   {counts[s] || 0}
                 </span>
               </div>
@@ -401,7 +401,7 @@ export default function BookingsPage() {
               <Icon name="close" size={16} />
             </button>
           </div>
-          <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
+          <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
             <div>
               <strong>Peminjam:</strong> {detail.peminjam?.nama} ({detail.peminjam?.email})
             </div>

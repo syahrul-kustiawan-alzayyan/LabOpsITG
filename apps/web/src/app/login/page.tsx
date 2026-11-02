@@ -80,7 +80,7 @@ export default function LoginPage() {
             </li>
           </ul>
         </div>
-        <p style={{ fontSize: 11, color: "#6f8b85", position: "relative", zIndex: 1, margin: 0 }}>
+        <p style={{ fontSize: 12, color: "#6f8b85", position: "relative", zIndex: 1, margin: 0 }}>
           Institut Teknologi Garut · Jurusan Ilmu Komputer
         </p>
       </aside>
@@ -161,7 +161,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p style={{ marginTop: 14, fontSize: 11.5, color: "var(--ink-soft)" }}>
+          <p style={{ marginTop: 14, fontSize: 12.5, color: "var(--ink-soft)" }}>
             <a href="/">← Kembali ke halaman informasi</a>
           </p>
         </div>
