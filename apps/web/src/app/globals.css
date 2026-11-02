@@ -302,6 +302,11 @@ a:hover {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  margin-left: var(--rail);
+  transition: margin-left 180ms ease;
+}
+.rail.is-open ~ .main {
+  margin-left: var(--rail-open);
 }
 
 /* ------------------------------------------------------------ topbar */
