@@ -27,8 +27,8 @@
   --radius: 6px;
   --radius-lg: 10px;
   --shadow: 0 1px 0 rgba(16, 32, 31, 0.04), 0 8px 24px -18px rgba(16, 32, 31, 0.5);
-  --rail: 80px;
-  --rail-open: 244px;
+  --rail: 100px;
+  --rail-open: 252px;
   --topbar: 64px;
 
   --font-display: var(--font-archivo), "Segoe UI", system-ui, sans-serif;
@@ -113,16 +113,64 @@ a:hover {
   flex-direction: column;
   position: sticky;
   top: 0;
+  align-self: flex-start;
   height: 100vh;
+  height: 100dvh;
   flex-shrink: 0;
   z-index: 30;
   transition: width 180ms ease;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 2px 0 8px -4px rgba(0, 0, 0, 0.35);
 }
 .rail.is-open {
   width: var(--rail-open);
+}
+.rail::-webkit-scrollbar {
+  width: 6px;
+}
+.rail::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+/* Saat menyempit: sembunyikan teks supaya tidak ada scroll samping. */
+.rail:not(.is-open) .rail-brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.rail:not(.is-open) .rail-brand-text,
+.rail:not(.is-open) .rail-label,
+.rail:not(.is-open) .rail-section {
+  display: none;
+}
+.rail:not(.is-open) .rail-nav {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.rail:not(.is-open) .rail-nav > div + div {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.rail:not(.is-open) .rail-link {
+  justify-content: center;
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+.rail:not(.is-open) .rail-link.active::before {
+  top: 10px;
+  bottom: 10px;
+}
+.rail:not(.is-open) .rail-toggle {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .rail-brand {
@@ -302,10 +350,12 @@ a:hover {
   flex-direction: column;
 }
 
-/* Pastikan tidak ada scroll horizontal di halaman admin. */
+/* Cegah scroll horizontal tanpa mematikan position: sticky.
+   `overflow-x: hidden` membuat body menjadi scroll container sehingga rail
+   dan topbar ikut tergulir; `clip` tidak. */
 html,
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* ------------------------------------------------------------ topbar */
