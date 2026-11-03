@@ -3,6 +3,10 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
 
+function positionLabel(tipe: string) {
+  return tipe === "INSTRUKTUR" ? "Instruktur" : "Asisten Dosen";
+}
+
 @Injectable()
 export class RecruitmentService {
   constructor(private prisma: PrismaService, private audit: AuditService, private notif: NotificationsService) {}
@@ -23,6 +27,7 @@ export class RecruitmentService {
       select: {
         id: true,
         posisi: true,
+        tipe: true,
         mataKuliah: true,
         kuota: true,
         persyaratan: true,
@@ -37,8 +42,17 @@ export class RecruitmentService {
   }
 
   async createPeriod(data: any, actorId: string) {
+    const tipe = data.tipe === "INSTRUKTUR" ? "INSTRUKTUR" : "ASISTEN_DOSEN";
     const period = await this.prisma.recruitmentPeriod.create({
-      data: { posisi: data.posisi, mataKuliah: data.mataKuliah, kuota: Number(data.kuota), persyaratan: data.persyaratan, tenggat: new Date(data.tenggat), status: "DIBUKA" },
+      data: {
+        posisi: positionLabel(tipe),
+        tipe,
+        mataKuliah: data.mataKuliah,
+        kuota: Number(data.kuota),
+        persyaratan: data.persyaratan,
+        tenggat: new Date(data.tenggat),
+        status: "DIBUKA",
+      },
     });
     await this.audit.log({ actorId, action: "CREATE_RECRUITMENT_PERIOD", objectType: "RecruitmentPeriod", objectId: period.id, newValue: period });
     return period;
@@ -47,9 +61,18 @@ export class RecruitmentService {
   async updatePeriod(id: string, data: any, actorId: string) {
     const before = await this.prisma.recruitmentPeriod.findUnique({ where: { id } });
     if (!before) throw new NotFoundException("Periode tidak ditemukan");
+    const tipe = data.tipe ? (data.tipe === "INSTRUKTUR" ? "INSTRUKTUR" : "ASISTEN_DOSEN") : undefined;
     const period = await this.prisma.recruitmentPeriod.update({
       where: { id },
-      data: { posisi: data.posisi, mataKuliah: data.mataKuliah, kuota: data.kuota ? Number(data.kuota) : undefined, persyaratan: data.persyaratan, tenggat: data.tenggat ? new Date(data.tenggat) : undefined, status: data.status },
+      data: {
+        posisi: tipe ? positionLabel(tipe) : undefined,
+        tipe,
+        mataKuliah: data.mataKuliah,
+        kuota: data.kuota ? Number(data.kuota) : undefined,
+        persyaratan: data.persyaratan,
+        tenggat: data.tenggat ? new Date(data.tenggat) : undefined,
+        status: data.status,
+      },
     });
     await this.audit.log({ actorId, action: "UPDATE_RECRUITMENT_PERIOD", objectType: "RecruitmentPeriod", objectId: id, oldValue: before, newValue: period });
     return period;
@@ -107,15 +130,11 @@ export class RecruitmentService {
     if (period.status !== "DIBUKA") throw new BadRequestException("Periode rekrutmen sudah ditutup");
     if (new Date() > period.tenggat) throw new BadRequestException("Tenggat lamaran sudah lewat");
 
-    const tipe = data.tipe;
-    if (!["INSTRUKTUR", "ASISTEN_DOSEN"].includes(tipe)) {
-      throw new BadRequestException("Jenis rekrutmen harus Instruktur atau Asisten Dosen");
-    }
-
+    const tipe = period.tipe;
     const namaLengkap = String(data.namaLengkap || "").trim();
     const email = String(data.emailKontak || "").trim().toLowerCase();
     const noWhatsapp = String(data.noWhatsapp || "").replace(/[^\d+]/g, "");
-    const mataKuliahDilamar = String(data.mataKuliahDilamar || period.mataKuliah || "").trim();
+    const mataKuliahDilamar = period.mataKuliah;
     const nim = data.nim ? String(data.nim).trim() : "";
     const gelar = data.gelar ? String(data.gelar).trim() : "";
 
@@ -180,7 +199,8 @@ export class RecruitmentService {
     }
     // auto-role if accepted (hanya untuk pelamar yang punya akun)
     if (status === "DITERIMA" && app.pelamarId) {
-      const subRole = app.period.posisi.toLowerCase().includes("instruktur") ? "INSTRUKTUR" : "ASISTEN_DOSEN";
+      const tipe = app.tipe ?? app.period.tipe;
+      const subRole = tipe === "INSTRUKTUR" ? "INSTRUKTUR" : "ASISTEN_DOSEN";
       const user = await this.prisma.user.findUnique({ where: { id: app.pelamarId } });
       if (user && !user.subRoles.includes(subRole as any)) {
         await this.prisma.user.update({ where: { id: app.pelamarId }, data: { subRoles: { push: subRole as any } } });

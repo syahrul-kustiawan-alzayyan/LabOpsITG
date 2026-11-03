@@ -330,6 +330,7 @@ model InventoryMutation {
 model RecruitmentPeriod {
   id          String            @id @default(cuid())
   posisi      String
+  tipe        ApplicantType     @default(ASISTEN_DOSEN)
   mataKuliah  String
   kuota       Int
   persyaratan String?

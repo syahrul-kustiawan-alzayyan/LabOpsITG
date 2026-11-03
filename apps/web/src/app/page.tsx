@@ -11,11 +11,17 @@ const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 type OpenPeriod = {
   id: string;
   posisi: string;
+  tipe: "INSTRUKTUR" | "ASISTEN_DOSEN";
   mataKuliah: string;
   kuota: number;
   persyaratan?: string | null;
   tenggat: string;
   _count?: { applications: number };
+};
+
+const APPLICANT_TYPE: Record<string, string> = {
+  INSTRUKTUR: "Instruktur",
+  ASISTEN_DOSEN: "Asisten Dosen",
 };
 
 const EMPTY_FORM = {
@@ -85,6 +91,7 @@ export default function LandingPage() {
     setForm((prev) => ({
       ...prev,
       periodId,
+      tipe: period?.tipe || prev.tipe,
       mataKuliahDilamar: period?.mataKuliah || prev.mataKuliahDilamar,
     }));
   }
@@ -464,15 +471,13 @@ export default function LandingPage() {
                   </div>
                   <div className="field">
                     <label htmlFor="lamar-tipe">Jenis rekrutmen</label>
-                    <select
+                    <input
                       id="lamar-tipe"
-                      value={form.tipe}
-                      onChange={(e) => setForm({ ...form, tipe: e.target.value })}
-                      required
-                    >
-                      <option value="ASISTEN_DOSEN">Asisten Dosen</option>
-                      <option value="INSTRUKTUR">Instruktur</option>
-                    </select>
+                      className="input"
+                      value={APPLICANT_TYPE[form.tipe] || form.tipe}
+                      readOnly
+                    />
+                    <span className="field-hint">Mengikuti lowongan yang dipilih.</span>
                   </div>
                   <div className="field">
                     <label htmlFor="lamar-nama">Nama lengkap</label>
@@ -541,10 +546,11 @@ export default function LandingPage() {
                       id="lamar-mk"
                       className="input"
                       value={form.mataKuliahDilamar}
-                      onChange={(e) => setForm({ ...form, mataKuliahDilamar: e.target.value })}
-                      placeholder="Praktikum yang dilamar"
+                      readOnly
+                      placeholder="Mengikuti lowongan yang dipilih"
                       required
                     />
+                    <span className="field-hint">Mengikuti lowongan yang dipilih.</span>
                   </div>
                 </div>
 

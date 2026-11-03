@@ -26,7 +26,7 @@ const STATUS_BADGE: Record<string, string> = {
   DITUTUP: "badge-muted",
 };
 
-const EMPTY_PERIOD = { posisi: "", mataKuliah: "", kuota: 3, persyaratan: "", tenggat: "" };
+const EMPTY_PERIOD = { tipe: "ASISTEN_DOSEN", mataKuliah: "", kuota: 3, persyaratan: "", tenggat: "" };
 const EMPTY_APPLY = { periodId: "", mataKuliahDilamar: "", motivasi: "", nilai: "", ketersediaan: "", cvUrl: "", transkripUrl: "" };
 
 const APPLICANT_TYPE: Record<string, string> = {
@@ -406,14 +406,22 @@ export default function RecruitmentPage() {
             <div className="card-head">
               <div>
                 <h2 className="card-title">Buka periode rekrutmen</h2>
-                <p className="card-note">Periode langsung berstatus dibuka dan dapat dilamar hingga tenggat.</p>
+                <p className="card-note">Lowongan dibuka per jenis rekrutmen dan mata kuliah praktikum.</p>
               </div>
             </div>
             <form onSubmit={createPeriod} className="form-grid">
               <div className="form-row">
                 <div className="field">
-                  <label htmlFor="np-posisi">Posisi</label>
-                  <input id="np-posisi" className="input" placeholder="Asisten Dosen" value={periodForm.posisi} onChange={(e) => setPeriodForm({ ...periodForm, posisi: e.target.value })} required />
+                  <label htmlFor="np-tipe">Jenis rekrutmen</label>
+                  <select
+                    id="np-tipe"
+                    value={periodForm.tipe}
+                    onChange={(e) => setPeriodForm({ ...periodForm, tipe: e.target.value })}
+                    required
+                  >
+                    <option value="ASISTEN_DOSEN">Asisten Dosen</option>
+                    <option value="INSTRUKTUR">Instruktur</option>
+                  </select>
                 </div>
                 <div className="field">
                   <label htmlFor="np-mk">Mata kuliah</label>

@@ -20,7 +20,7 @@ test.describe("Halaman informasi publik", () => {
       await login(page, "koordinator");
       await page.goto("/recruitment");
       await page.getByRole("button", { name: "Kelola", exact: true }).click();
-      await page.locator("#np-posisi").fill("Asisten Dosen");
+      await page.locator("#np-tipe").selectOption("ASISTEN_DOSEN");
       await page.locator("#np-mk").fill(mk);
       await page.locator("#np-kuota").fill("2");
       await page.locator("#np-tenggat").fill(futureDate(60));
@@ -33,12 +33,16 @@ test.describe("Halaman informasi publik", () => {
     expect(hasPeriod, "harus ada minimal satu lowongan untuk diuji").toBeTruthy();
 
     await page.locator("#lamar-posisi").selectOption({ index: 1 });
-    await page.locator("#lamar-tipe").selectOption("ASISTEN_DOSEN");
+    const tipeLabel = await page.locator("#lamar-tipe").inputValue();
+    await expect(page.locator("#lamar-mk")).not.toHaveValue("");
     await page.locator("#lamar-nama").fill(nama);
     await page.locator("#lamar-email").fill(email);
-    await page.locator("#lamar-nim").fill("22552001");
+    if (tipeLabel === "Instruktur") {
+      await page.locator("#lamar-gelar").fill("S.Kom.");
+    } else {
+      await page.locator("#lamar-nim").fill("22552001");
+    }
     await page.locator("#lamar-wa").fill("081234567890");
-    await page.locator("#lamar-mk").fill(mk);
 
     const pdf = { name: "berkas.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 uji") };
     await page.locator("#lamar-surat").setInputFiles(pdf);
@@ -59,8 +63,12 @@ test.describe("Halaman informasi publik", () => {
     const row = page.locator("table tbody tr", { hasText: nama }).first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await expect(row).toContainText(email);
-    await expect(row).toContainText("Asisten Dosen");
-    await expect(row).toContainText("22552001");
+    await expect(row).toContainText(tipeLabel);
+    if (tipeLabel === "Instruktur") {
+      await expect(row).toContainText("S.Kom.");
+    } else {
+      await expect(row).toContainText("22552001");
+    }
     await expect(row).toContainText("081234567890");
   });
 });

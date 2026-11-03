@@ -219,6 +219,7 @@ async function main() {
     period = await prisma.recruitmentPeriod.create({
       data: {
         posisi: "Asisten Dosen",
+        tipe: "ASISTEN_DOSEN",
         mataKuliah: "Praktikum Basis Data",
         kuota: 6,
         persyaratan: "Mahasiswa aktif semester 3 ke atas, IPK minimal 3.0.",
@@ -235,10 +236,28 @@ async function main() {
       data: {
         periodId: period.id,
         pelamarId,
+        tipe: "ASISTEN_DOSEN",
         mataKuliahDilamar: period.mataKuliah,
         motivasi: "Ingin membantu jalannya praktikum dan memperdalam materi.",
         nilai: 3.2 + i * 0.1,
         status: i === 0 ? "WAWANCARA" : "DIAJUKAN",
+      },
+    });
+  }
+
+  const instrukturPeriod = await prisma.recruitmentPeriod.findFirst({ where: { tipe: "INSTRUKTUR" } });
+  if (!instrukturPeriod) {
+    const tenggat = new Date(dayBase);
+    tenggat.setUTCDate(tenggat.getUTCDate() + 21);
+    await prisma.recruitmentPeriod.create({
+      data: {
+        posisi: "Instruktur",
+        tipe: "INSTRUKTUR",
+        mataKuliah: "Praktikum Pemrograman Web",
+        kuota: 2,
+        persyaratan: "Lulusan S1 Ilmu Komputer/Informatika, menguasai pengembangan web.",
+        tenggat,
+        status: "DIBUKA",
       },
     });
   }
