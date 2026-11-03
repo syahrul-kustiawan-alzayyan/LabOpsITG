@@ -9,6 +9,7 @@ const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 const EMPTY_FORM = {
   labId: "",
+  mataKuliahId: "",
   mataKuliah: "",
   kelas: "",
   pengampuId: "",
@@ -105,7 +106,7 @@ export default function SchedulesPage() {
         </div>
         <div className="page-actions">
           {canManage && (
-            <button className="btn" onClick={() => setShowForm((v) => !v)}>
+            <button className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
               <Icon name="plus" size={16} /> {showForm ? "Tutup form" : "Tambah jadwal"}
             </button>
           )}
@@ -189,7 +190,7 @@ export default function SchedulesPage() {
               </select>
             </div>
             <div className="field" style={{ justifyContent: "flex-end" }}>
-              <button className="btn" type="submit">
+              <button className="btn btn-primary" type="submit">
                 Simpan jadwal
               </button>
             </div>
@@ -280,32 +281,45 @@ export default function SchedulesPage() {
                   <h2 className="card-title">{h}</h2>
                   <span className="badge badge-plain">{items.length} sesi</span>
                 </div>
-                <div className="table-wrap" style={{ border: "none", borderRadius: 0 }}>
-                  <table className="table">
+                <div className="table-wrap" style={{ border: "none", borderRadius: 0, marginTop: 8 }}>
+                  <table className="table schedule-table">
                     <thead>
                       <tr>
-                        <th>Lab</th>
+                        <th style={{ width: 70 }}>Lab</th>
                         <th>Mata kuliah</th>
-                        <th>Kelas</th>
-                        <th>Jam</th>
+                        <th style={{ width: 80 }}>Kelas</th>
+                        <th style={{ width: 120 }}>Jam</th>
                         <th>Pengampu</th>
-                        <th>Jenis</th>
-                        <th>Aksi</th>
+                        <th style={{ width: 100 }}>Jenis</th>
+                        <th style={{ width: 110 }}>{canManage ? "Aksi" : ""}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((s) => (
-                        <tr key={s.id}>
-                          <td className="num">{s.lab?.kode}</td>
-                          <td>{s.mataKuliah}</td>
-                          <td>{s.kelas}</td>
+                        <tr key={s.id} className="schedule-row">
                           <td className="num">
-                            {s.jamMulai}–{s.jamSelesai}
+                            <span className="schedule-lab-chip">{s.lab?.kode}</span>
                           </td>
-                          <td>{s.pengampu?.nama || "—"}</td>
                           <td>
-                            <span className={`badge ${s.jenis === "PRAKTIKUM_RUTIN" ? "badge-success" : "badge-info"}`}>
-                              {s.jenis === "PRAKTIKUM_RUTIN" ? "praktikum" : "kegiatan"}
+                            <div className="schedule-course">{s.mataKuliah}</div>
+                            <div className="schedule-meta">
+                              {s.kelas ? <span className="schedule-meta-item">Kelas {s.kelas}</span> : null}
+                              {s.semester ? <span className="schedule-meta-item">{s.semester}</span> : null}
+                            </div>
+                          </td>
+                          <td className="num">
+                            <span className="schedule-time-chip">{s.jamMulai}–{s.jamSelesai}</span>
+                          </td>
+                          <td>
+                            {s.pengampu?.nama || (
+                              <span className="schedule-meta-none">—</span>
+                            )}
+                          </td>
+                          <td>
+                            <span
+                              className={`badge ${s.jenis === "PRAKTIKUM_RUTIN" ? "badge-success" : "badge-info"}`}
+                            >
+                              {s.jenis === "PRAKTIKUM_RUTIN" ? "Praktikum" : "Kegiatan"}
                             </span>
                           </td>
                           <td>
@@ -327,7 +341,7 @@ export default function SchedulesPage() {
       )}
 
       {!loading && visible.length === 0 && (
-        <div className="card">
+        <div className="card" style={{ marginTop: 16 }}>
           <div className="empty">
             <Icon name="calendar" size={26} />
             <p className="empty-title">Tidak ada jadwal yang cocok</p>

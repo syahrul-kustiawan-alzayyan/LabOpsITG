@@ -813,92 +813,228 @@ input[type="checkbox"] {
 /* ------------------------------------------------------------ mata kuliah */
 .course-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
 }
-.course-kode {
+.course-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  box-shadow: 0 1px 0 rgba(16, 32, 31, 0.04);
+}
+.course-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -28px rgba(16, 32, 31, 0.45);
+  border-color: var(--line-strong);
+}
+.course-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--petrol);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.course-card:hover::before {
+  opacity: 1;
+}
+.course-card.status-nonaktif::before {
+  background: var(--ink-soft);
+}
+.course-card-header {
+  padding: 16px 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.course-kode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
-  font-size: 12.5px;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-soft);
-  margin: 0 0 6px;
+  color: var(--petrol-600);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(15, 76, 76, 0.08);
+  border: 1px solid rgba(15, 76, 76, 0.16);
+  white-space: nowrap;
+}
+.course-card-header .course-actions {
+  margin: 0;
+  gap: 6px;
+}
+.course-card-body {
+  padding: 16px 18px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 .course-name {
+  font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 650;
-  margin: 0 0 4px;
-  line-height: 1.3;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.35;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.course-meta {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.course-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .course-desc {
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.6;
   color: var(--ink-soft);
-  margin: 6px 0 12px;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .course-team {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px 14px;
-  margin: 10px 0 14px;
+  margin: 0;
+  padding-top: 12px;
   border-top: 1px dashed var(--line);
-  border-bottom: 1px dashed var(--line);
-  padding: 10px 0;
 }
 .team-line {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14.5px;
+  font-size: 13.5px;
 }
 .team-line span:first-child {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--ink-soft);
   flex-shrink: 0;
+  min-width: 56px;
 }
 .team-line strong {
   color: var(--ink);
+  font-weight: 600;
+}
+.team-line .team-empty {
+  color: #9db1aa;
+  font-style: italic;
+  font-weight: 400;
+}
+.team-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--petrol-050);
+  color: var(--petrol-600);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(15, 76, 76, 0.2);
+}
+.team-avatar.instruktur {
+  background: var(--signal-050);
+  color: #a34c05;
+  border-color: rgba(217, 102, 10, 0.2);
+}
+.team-avatar.asisten {
+  background: var(--info-050);
+  color: var(--info);
+  border-color: rgba(42, 92, 122, 0.2);
 }
 .kelas-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 0 8px;
-  font-size: 14px;
+  margin: 0 0 10px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.kelas-head .badge {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 12px;
+  font-weight: 500;
 }
 .kelas-list {
   display: grid;
   gap: 8px;
-  margin-bottom: 12px;
+  margin: 0;
 }
 .kelas-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 8px;
   background: var(--surface);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.kelas-row:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
 }
 .kelas-tag {
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--petrol);
-  min-width: 26px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--petrol-600);
+  min-width: 34px;
+  text-align: center;
   white-space: nowrap;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(15, 76, 76, 0.06);
+  border: 1px solid rgba(15, 76, 76, 0.12);
 }
 .kelas-info {
   flex: 1;
+  min-width: 0;
   font-size: 14px;
   color: var(--ink);
 }
+.kelas-info > span {
+  display: block;
+}
 .kelas-sub {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-soft);
-  margin-left: 4px;
+  margin-top: 2px;
 }
 .kelas-actions {
   display: flex;
@@ -907,31 +1043,42 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 .course-actions {
-  margin-top: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
+.course-actions .btn {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  justify-content: center;
+}
 
+/* ------------------------------------------------------------ mata kuliah form */
 .kelas-form-box {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface-2);
-  padding: 14px;
-  margin-bottom: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .kelas-form-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-soft);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
-
 .team-fields {
   margin-top: 4px;
 }
@@ -1111,6 +1258,86 @@ input[type="checkbox"] {
   }
 }
 
+/* ------------------------------------------------------------ jadwal table */
+.schedule-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.schedule-table th {
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--line-strong);
+  background: var(--surface-2);
+}
+.schedule-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--ink);
+  vertical-align: middle;
+}
+.schedule-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.schedule-row {
+  transition: background 150ms ease;
+}
+.schedule-row:hover {
+  background: rgba(15, 76, 76, 0.03);
+}
+.schedule-lab-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--petrol-600);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(15, 76, 76, 0.08);
+  border: 1px solid rgba(15, 76, 76, 0.14);
+}
+.schedule-time-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+.schedule-course {
+  font-weight: 650;
+  color: var(--ink);
+  font-size: 14.5px;
+}
+.schedule-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+.schedule-meta-item {
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+}
+.schedule-meta-none {
+  font-size: 12.5px;
+  color: #9db1aa;
+  font-style: italic;
+}
+
 /* ------------------------------------------------------------ timetable */
 .timetable {
   border: 1px solid var(--line);
@@ -1180,33 +1407,40 @@ input[type="checkbox"] {
 .tt-block {
   height: 100%;
   min-height: 42px;
-  border-radius: 5px;
-  padding: 6px 8px;
-  font-size: 13.5px;
-  line-height: 1.3;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 13px;
+  line-height: 1.35;
   color: #fff;
   background: var(--petrol-600);
   border-left: 3px solid #0b3d3d;
   overflow: hidden;
   cursor: pointer;
   display: block;
+  box-shadow: 0 2px 6px -4px rgba(0, 0, 0, 0.25);
+  transition: transform 120ms ease, filter 120ms ease;
 }
 .tt-block:hover {
   text-decoration: none;
-  filter: brightness(1.06);
+  transform: scale(1.02);
+  filter: brightness(1.08);
+  z-index: 2;
+  position: relative;
 }
 .tt-block .tt-code {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 11.5px;
   opacity: 0.85;
   display: block;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 .tt-course {
+  font-weight: 650;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-size: 12.5px;
 }
 .tt-block.booking {
   background: var(--signal-050);
@@ -1215,6 +1449,7 @@ input[type="checkbox"] {
   border-top: 1px dashed #e6b98d;
   border-right: 1px dashed #e6b98d;
   border-bottom: 1px dashed #e6b98d;
+  box-shadow: none;
 }
 .tt-legend {
   display: flex;

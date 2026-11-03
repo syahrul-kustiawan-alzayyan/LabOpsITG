@@ -316,7 +316,7 @@ export default function CoursesPage() {
         {canManage && (
           <div className="page-actions">
             <button
-              className="btn"
+              className="btn btn-primary"
               onClick={() => {
                 setShowForm((v) => !v);
                 setEditCourse(null);
@@ -485,7 +485,7 @@ export default function CoursesPage() {
             </div>
 
             <div className="form-actions" style={{ marginTop: 18 }}>
-              <button className="btn" type="submit" disabled={saving}>
+              <button className="btn btn-primary" type="submit" disabled={saving}>
                 {saving ? "Menyimpan..." : "Simpan mata kuliah"}
               </button>
               <p className="field-hint">
@@ -585,7 +585,7 @@ export default function CoursesPage() {
             />
 
             <div className="form-actions" style={{ marginTop: 18 }}>
-              <button className="btn" type="submit" disabled={saving}>
+              <button className="btn btn-primary" type="submit" disabled={saving}>
                 {saving ? "Menyimpan..." : "Simpan perubahan"}
               </button>
               <button type="button" className="btn btn-danger" onClick={() => remove(editCourse)}>
@@ -615,7 +615,7 @@ export default function CoursesPage() {
           <form onSubmit={saveKelas}>
             <KelasFields value={kelasForm} labs={labs} idPrefix="kelas-edit" onChange={(patch) => setKelasForm({ ...kelasForm, ...patch })} />
             <div className="form-actions" style={{ marginTop: 18 }}>
-              <button className="btn" type="submit" disabled={saving}>
+              <button className="btn btn-primary" type="submit" disabled={saving}>
                 {saving ? "Menyimpan..." : "Simpan kelas"}
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => setKelasEditor(null)}>
@@ -679,94 +679,135 @@ export default function CoursesPage() {
           {visible.map((course) => {
             const asisten = (course.asisten || []).map((a: any) => a.nama).join(", ");
             return (
-              <article className="card course-card" key={course.id}>
-                <div className="card-head" style={{ marginBottom: 0 }}>
+              <article
+                className={`card course-card ${course.status === "NONAKTIF" ? "status-nonaktif" : ""}`}
+                key={course.id}
+              >
+                <div className="course-card-header">
                   <div>
-                    <p className="course-kode">{course.kode}</p>
-                    <h2 className="card-title course-name">{course.nama}</h2>
-                    <p className="card-note">
-                      {course.sks} SKS · semester kurikulum {course.semester}
+                    <span className="course-kode-chip">{course.kode}</span>
+                    <h2 className="course-name">{course.nama}</h2>
+                    <p className="course-meta">
+                      <span>{course.sks} SKS</span>
+                      <span>Semester {course.semester}</span>
                     </p>
                   </div>
-                  <span className={`badge ${course.status === "AKTIF" ? "badge-success" : "badge-muted"}`}>
-                    {course.status === "AKTIF" ? "aktif" : "nonaktif"}
+                  <span
+                    className={`badge ${course.status === "AKTIF" ? "badge-success" : "badge-muted"}`}
+                  >
+                    {course.status === "AKTIF" ? "Aktif" : "Nonaktif"}
                   </span>
                 </div>
 
-                {course.deskripsi && <p className="course-desc">{course.deskripsi}</p>}
+                <div className="course-card-body">
+                  {course.deskripsi && <p className="course-desc">{course.deskripsi}</p>}
 
-                <div className="course-team">
-                  <div className="team-line">
-                    <span>Dosen</span>
-                    <strong>{course.dosen?.nama || "Belum ditentukan"}</strong>
-                  </div>
-                  <div className="team-line">
-                    <span>Instruktur</span>
-                    <strong>{course.instruktur?.nama || "Belum ditentukan"}</strong>
-                  </div>
-                  <div className="team-line">
-                    <span>Asisten</span>
-                    <span>{asisten || "Belum ditentukan"}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="kelas-head">
-                    <span className="stat-label">Kelas &amp; jadwal</span>
-                    <span className="badge badge-plain">{course.kelas?.length || 0} kelas</span>
-                  </div>
-                  {course.kelas?.length ? (
-                    <div className="kelas-list">
-                      {course.kelas.map((kelas: any) => (
-                        <div className="kelas-row" key={kelas.id}>
-                          <span className="kelas-tag">Kelas {kelas.kelas}</span>
-                          <span className="kelas-info">
-                            <span>
-                              {HARI[kelas.hari]} · {kelas.jamMulai}–{kelas.jamSelesai}
-                            </span>
-                            <span className="kelas-sub">
-                              {kelas.lab?.kode || "Lab"} · {kelas.semester}
-                            </span>
-                          </span>
-                          {canManage && (
-                            <span className="kelas-actions">
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => openEditKelas(course, kelas)}
-                              >
-                                Ubah
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => removeKelas(course, kelas)}
-                              >
-                                Hapus
-                              </button>
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                  <div className="course-team">
+                    <div className="team-line">
+                      <span>Dosen</span>
+                      {course.dosen ? (
+                        <>
+                          <span className="team-avatar">{initials(course.dosen.nama)}</span>
+                          <strong>{course.dosen.nama}</strong>
+                        </>
+                      ) : (
+                        <span className="team-empty">Belum ditentukan</span>
+                      )}
                     </div>
-                  ) : (
-                    <p className="field-hint">Belum ada kelas. Tambahkan kelas beserta jadwalnya.</p>
+                    <div className="team-line">
+                      <span>Instruktur</span>
+                      {course.instruktur ? (
+                        <>
+                          <span className="team-avatar instruktur">{initials(course.instruktur.nama)}</span>
+                          <strong>{course.instruktur.nama}</strong>
+                        </>
+                      ) : (
+                        <span className="team-empty">Belum ditentukan</span>
+                      )}
+                    </div>
+                    <div className="team-line">
+                      <span>Asisten</span>
+                      {asisten ? (
+                        <>
+                          {course.asisten?.slice(0, 2).map((a: any) => (
+                            <span key={a.id} className="team-avatar asisten">
+                              {initials(a.nama)}
+                            </span>
+                          ))}
+                          <strong>{asisten}</strong>
+                        </>
+                      ) : (
+                        <span className="team-empty">Belum ditentukan</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="kelas-head">
+                      <span className="stat-label">Kelas &amp; jadwal</span>
+                      <span className="badge badge-plain">{course.kelas?.length || 0} kelas</span>
+                    </div>
+                    {course.kelas?.length ? (
+                      <div className="kelas-list">
+                        {course.kelas.map((kelas: any) => (
+                          <div className="kelas-row" key={kelas.id}>
+                            <span className="kelas-tag">Kelas {kelas.kelas}</span>
+                            <span className="kelas-info">
+                              <span>
+                                {HARI[kelas.hari]} · {kelas.jamMulai}–{kelas.jamSelesai}
+                              </span>
+                              <span className="kelas-sub">
+                                {kelas.lab?.kode || "Lab"} · {kelas.semester}
+                              </span>
+                            </span>
+                            {canManage && (
+                              <span className="kelas-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => openEditKelas(course, kelas)}
+                                >
+                                  Ubah
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => removeKelas(course, kelas)}
+                                >
+                                  Hapus
+                                </button>
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="field-hint">Belum ada kelas. Tambahkan kelas beserta jadwalnya.</p>
+                    )}
+                  </div>
+
+                  {canManage && (
+                    <div className="course-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => openCreateKelas(course)}
+                      >
+                        <Icon name="plus" size={14} /> Kelas
+                      </button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(course)}>
+                        Ubah
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => toggleStatus(course)}
+                      >
+                        {course.status === "AKTIF" ? "Nonaktifkan" : "Aktifkan"}
+                      </button>
+                    </div>
                   )}
                 </div>
-
-                {canManage && (
-                  <div className="table-actions course-actions">
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => openCreateKelas(course)}>
-                      <Icon name="plus" size={14} /> Kelas
-                    </button>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(course)}>
-                      Ubah
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleStatus(course)}>
-                      {course.status === "AKTIF" ? "Nonaktifkan" : "Aktifkan"}
-                    </button>
-                  </div>
-                )}
               </article>
             );
           })}
@@ -777,6 +818,17 @@ export default function CoursesPage() {
 }
 
 /* --------------------------------------------------------------- subkomponen */
+
+function initials(name?: string) {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+}
 
 function TeamFields({
   team,
@@ -924,7 +976,7 @@ function TeamFields({
               />
             </div>
             <div className="field">
-              <button className="btn" type="submit" disabled={busy}>
+              <button className="btn btn-primary" type="submit" disabled={busy}>
                 {busy ? "Menyimpan..." : "Simpan personel"}
               </button>
             </div>
