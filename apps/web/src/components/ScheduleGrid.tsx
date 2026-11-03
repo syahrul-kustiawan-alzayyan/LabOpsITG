@@ -21,11 +21,11 @@ type GridBooking = {
   keperluan: string;
 };
 
-const START_HOUR = 7;
-const END_HOUR = 19;
+const START_HOUR = 6;
+const END_HOUR = 21;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 const LABEL_WIDTH = 88;
-const TRACK_HEIGHT = 64;
+const TRACK_HEIGHT = 56;
 const BLOCK_GAP = 4;
 
 type RowBlock = {

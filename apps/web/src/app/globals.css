@@ -1476,14 +1476,24 @@ input[type="checkbox"] {
 }
 .tt-track {
   position: relative;
-  height: 64px;
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent,
-    transparent calc(100% / var(--hours, 12) - 1px),
-    #eef1ec calc(100% / var(--hours, 12) - 1px),
-    #eef1ec calc(100% / var(--hours, 12))
-  );
+  height: 56px;
+  background-image:
+    /* half-hour minor lines */
+    repeating-linear-gradient(
+      to right,
+      transparent,
+      transparent calc((100% / var(--hours, 15) / 2) - 1px),
+      rgba(15, 76, 76, 0.06) calc((100% / var(--hours, 15) / 2) - 1px),
+      rgba(15, 76, 76, 0.06) calc(100% / var(--hours, 15) / 2)
+    ),
+    /* hour major lines */
+    repeating-linear-gradient(
+      to right,
+      transparent,
+      transparent calc(100% / var(--hours, 15) - 1px),
+      #eef1ec calc(100% / var(--hours, 15) - 1px),
+      #eef1ec calc(100% / var(--hours, 15))
+    );
 }
 .tt-track .tt-block {
   position: absolute;
