@@ -4,7 +4,7 @@ import { assertNoHorizontalOverflow, login } from "./helpers";
 test.describe("Tampilan responsif", () => {
   test("landing page muat di layar ponsel", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Laboratorium yang tercatat/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Jadwal, peminjaman, dan layanan lab/i })).toBeVisible();
     await assertNoHorizontalOverflow(page);
   });
 

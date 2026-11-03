@@ -29,6 +29,19 @@ const STATUS_BADGE: Record<string, string> = {
 const EMPTY_PERIOD = { posisi: "", mataKuliah: "", kuota: 3, persyaratan: "", tenggat: "" };
 const EMPTY_APPLY = { periodId: "", mataKuliahDilamar: "", motivasi: "", nilai: "", ketersediaan: "", cvUrl: "", transkripUrl: "" };
 
+const APPLICANT_TYPE: Record<string, string> = {
+  INSTRUKTUR: "Instruktur",
+  ASISTEN_DOSEN: "Asisten Dosen",
+};
+
+function applicantName(a: any) {
+  return a.pelamar?.nama || a.namaLengkap || "Pelamar";
+}
+
+function applicantEmail(a: any) {
+  return a.pelamar?.email || a.emailKontak || "—";
+}
+
 export default function RecruitmentPage() {
   const [periods, setPeriods] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
@@ -128,7 +141,7 @@ export default function RecruitmentPage() {
     if (!statusApp) return;
     try {
       await api(`/recruitment/applications/${statusApp.id}/status`, { method: "PATCH", body: { status: statusVal, catatan } });
-      setMsg({ type: "success", text: `Status lamaran ${statusApp.pelamar?.nama} diperbarui.` });
+      setMsg({ type: "success", text: `Status lamaran ${applicantName(statusApp)} diperbarui.` });
       setStatusApp(null);
       setCatatan("");
       load();
@@ -481,7 +494,7 @@ export default function RecruitmentPage() {
                     <th>Pelamar</th>
                     <th>Posisi</th>
                     <th>MK dilamar</th>
-                    <th>Nilai</th>
+                    <th>Berkas</th>
                     <th>Status</th>
                     <th>Aksi</th>
                   </tr>
@@ -499,12 +512,49 @@ export default function RecruitmentPage() {
                     applications.map((a) => (
                       <tr key={a.id}>
                         <td>
-                          <div>{a.pelamar?.nama}</div>
-                          <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>{a.pelamar?.email}</div>
+                          <div style={{ fontWeight: 550 }}>{applicantName(a)}</div>
+                          <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>{applicantEmail(a)}</div>
+                          <div style={{ fontSize: 13.5, color: "var(--ink-soft)", marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <span className={`badge ${a.pelamarId ? "badge-info" : "badge-warning"}`}>
+                              {a.pelamarId ? "Akun kampus" : APPLICANT_TYPE[a.tipe] || "Publik"}
+                            </span>
+                            {a.nim && <span className="num">NIM {a.nim}</span>}
+                            {a.gelar && <span>{a.gelar}</span>}
+                            {a.noWhatsapp && <span className="num">WA {a.noWhatsapp}</span>}
+                          </div>
                         </td>
                         <td>{a.period?.posisi}</td>
-                        <td>{a.mataKuliahDilamar}</td>
-                        <td className="num">{a.nilai ?? "—"}</td>
+                        <td>
+                          <div>{a.mataKuliahDilamar}</div>
+                          {a.nilai != null && (
+                            <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>Nilai/IPK {a.nilai}</div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
+                            {a.suratLamaranUrl ? (
+                              <a href={fileUrl(a.suratLamaranUrl)} target="_blank" rel="noreferrer">
+                                Surat lamaran
+                              </a>
+                            ) : (
+                              <span style={{ color: "var(--ink-soft)" }}>Surat lamaran —</span>
+                            )}
+                            {a.cvUrl ? (
+                              <a href={fileUrl(a.cvUrl)} target="_blank" rel="noreferrer">
+                                CV
+                              </a>
+                            ) : (
+                              <span style={{ color: "var(--ink-soft)" }}>CV —</span>
+                            )}
+                            {a.transkripUrl ? (
+                              <a href={fileUrl(a.transkripUrl)} target="_blank" rel="noreferrer">
+                                Transkrip nilai
+                              </a>
+                            ) : (
+                              <span style={{ color: "var(--ink-soft)" }}>Transkrip —</span>
+                            )}
+                          </div>
+                        </td>
                         <td>
                           <span className={`badge ${STATUS_BADGE[a.status] || "badge-muted"}`}>{STATUS_LABEL[a.status] || a.status}</span>
                         </td>
@@ -533,7 +583,7 @@ export default function RecruitmentPage() {
               <div className="card-head">
                 <div>
                   <h3 className="panel-title" style={{ margin: 0 }}>
-                    Keputusan lamaran · {statusApp.pelamar?.nama}
+                    Keputusan lamaran · {applicantName(statusApp)}
                   </h3>
                   <p className="card-note">Status Diterima otomatis menambahkan sub-peran asisten/instruktur.</p>
                 </div>

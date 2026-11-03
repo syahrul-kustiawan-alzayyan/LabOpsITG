@@ -14,6 +14,24 @@ export class RecruitmentService {
     return this.prisma.recruitmentPeriod.findMany({ where, orderBy: { createdAt: "desc" }, include: { _count: { select: { applications: true } } } });
   }
 
+  /** Periode yang masih dibuka dan belum lewat tenggat, untuk halaman informasi publik. */
+  findOpenPeriods() {
+    const now = new Date();
+    return this.prisma.recruitmentPeriod.findMany({
+      where: { status: "DIBUKA", tenggat: { gte: now } },
+      orderBy: { tenggat: "asc" },
+      select: {
+        id: true,
+        posisi: true,
+        mataKuliah: true,
+        kuota: true,
+        persyaratan: true,
+        tenggat: true,
+        _count: { select: { applications: true } },
+      },
+    });
+  }
+
   findPeriod(id: string) {
     return this.prisma.recruitmentPeriod.findUnique({ where: { id }, include: { applications: { include: { pelamar: { select: { nama: true, email: true } } } } } });
   }
@@ -79,6 +97,75 @@ export class RecruitmentService {
     });
   }
 
+  /**
+   * Lamaran dari halaman informasi publik (tanpa akun kampus).
+   * Semua berkas wajib diunggah dan pernyataan kebenaran data wajib dicentang.
+   */
+  async applyPublic(data: any) {
+    const period = await this.prisma.recruitmentPeriod.findUnique({ where: { id: data.periodId } });
+    if (!period) throw new NotFoundException("Periode rekrutmen tidak ditemukan");
+    if (period.status !== "DIBUKA") throw new BadRequestException("Periode rekrutmen sudah ditutup");
+    if (new Date() > period.tenggat) throw new BadRequestException("Tenggat lamaran sudah lewat");
+
+    const tipe = data.tipe;
+    if (!["INSTRUKTUR", "ASISTEN_DOSEN"].includes(tipe)) {
+      throw new BadRequestException("Jenis rekrutmen harus Instruktur atau Asisten Dosen");
+    }
+
+    const namaLengkap = String(data.namaLengkap || "").trim();
+    const email = String(data.emailKontak || "").trim().toLowerCase();
+    const noWhatsapp = String(data.noWhatsapp || "").replace(/[^\d+]/g, "");
+    const mataKuliahDilamar = String(data.mataKuliahDilamar || period.mataKuliah || "").trim();
+    const nim = data.nim ? String(data.nim).trim() : "";
+    const gelar = data.gelar ? String(data.gelar).trim() : "";
+
+    if (!namaLengkap) throw new BadRequestException("Nama lengkap wajib diisi");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException("Format email tidak valid");
+    if (!/^\+?\d{9,15}$/.test(noWhatsapp)) throw new BadRequestException("Nomor WhatsApp tidak valid");
+    if (!mataKuliahDilamar) throw new BadRequestException("Mata kuliah praktikum wajib diisi");
+    if (tipe === "ASISTEN_DOSEN" && !nim) throw new BadRequestException("NIM wajib diisi untuk asisten dosen");
+    if (tipe === "INSTRUKTUR" && !gelar) throw new BadRequestException("Gelar wajib diisi untuk instruktur");
+
+    const suratLamaranUrl = String(data.suratLamaranUrl || "").trim();
+    const cvUrl = String(data.cvUrl || "").trim();
+    const transkripUrl = String(data.transkripUrl || "").trim();
+    if (!suratLamaranUrl || !cvUrl || !transkripUrl) {
+      throw new BadRequestException("Surat lamaran, CV, dan transkrip nilai wajib diunggah");
+    }
+    if (data.pernyataan !== true) {
+      throw new BadRequestException("Anda harus menyetujui pernyataan kebenaran data");
+    }
+
+    const existing = await this.prisma.application.findFirst({
+      where: { periodId: data.periodId, emailKontak: email, deletedAt: null },
+    });
+    if (existing) throw new BadRequestException("Email ini sudah melamar pada periode tersebut");
+
+    const app = await this.prisma.application.create({
+      data: {
+        periodId: data.periodId,
+        pelamarId: null,
+        tipe,
+        namaLengkap,
+        emailKontak: email,
+        nim: nim || null,
+        gelar: gelar || null,
+        noWhatsapp,
+        mataKuliahDilamar,
+        motivasi: data.motivasi ? String(data.motivasi) : null,
+        suratLamaranUrl,
+        cvUrl,
+        transkripUrl,
+        pernyataan: true,
+        status: "DIAJUKAN",
+      },
+    });
+
+    const coords = await this.prisma.user.findMany({ where: { role: { in: ["COORDINATOR", "ADMIN_SYSTEM"] }, status: "ACTIVE", deletedAt: null } });
+    for (const c of coords) await this.notif.create(c.id, "LAMARAN_BARU", `Lamaran publik baru untuk ${period.posisi} — ${namaLengkap}`);
+    return { id: app.id, status: app.status, message: "Lamaran berhasil dikirim" };
+  }
+
   findMyApplications(userId: string) {
     return this.prisma.application.findMany({ where: { pelamarId: userId, deletedAt: null }, include: { period: { select: { posisi: true, mataKuliah: true, tenggat: true, status: true } } }, orderBy: { createdAt: "desc" } });
   }
@@ -88,9 +175,11 @@ export class RecruitmentService {
     if (!app) throw new NotFoundException("Lamaran tidak ditemukan");
     const updated = await this.prisma.application.update({ where: { id }, data: { status: status as any, catatanPenilaian: catatan } });
     await this.audit.log({ actorId, action: "UPDATE_APPLICATION_STATUS", objectType: "Application", objectId: id, oldValue: { status: app.status }, newValue: { status } });
-    await this.notif.create(app.pelamarId, "LAMARAN_STATUS", `Lamaran Anda berstatus ${status}`);
-    // auto-role if accepted
-    if (status === "DITERIMA") {
+    if (app.pelamarId) {
+      await this.notif.create(app.pelamarId, "LAMARAN_STATUS", `Lamaran Anda berstatus ${status}`);
+    }
+    // auto-role if accepted (hanya untuk pelamar yang punya akun)
+    if (status === "DITERIMA" && app.pelamarId) {
       const subRole = app.period.posisi.toLowerCase().includes("instruktur") ? "INSTRUKTUR" : "ASISTEN_DOSEN";
       const user = await this.prisma.user.findUnique({ where: { id: app.pelamarId } });
       if (user && !user.subRoles.includes(subRole as any)) {

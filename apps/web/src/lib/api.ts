@@ -80,6 +80,13 @@ export async function uploadFile(file: File) {
   return api<{ url: string; filename: string; size: number }>("/files/upload", { method: "POST", body: form });
 }
 
+/** Unggah berkas lamaran publik (tanpa sesi masuk). */
+export async function uploadPublicFile(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return api<{ url: string; filename: string; size: number }>("/public/files/upload", { method: "POST", body: form }, false);
+}
+
 export function fileUrl(path?: string | null) {
   if (!path) return "";
   return path.startsWith("http") ? path : `${API_BASE}${path}`;

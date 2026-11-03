@@ -108,6 +108,11 @@ enum ApplicationStatus {
   CADANGAN
 }
 
+enum ApplicantType {
+  INSTRUKTUR
+  ASISTEN_DOSEN
+}
+
 model User {
   id           String     @id @default(cuid())
   nama         String
@@ -337,23 +342,31 @@ model RecruitmentPeriod {
 }
 
 model Application {
-  id              String            @id @default(cuid())
-  periodId        String
-  pelamarId       String
+  id                String            @id @default(cuid())
+  periodId          String
+  pelamarId         String?
+  tipe              ApplicantType?
+  namaLengkap       String?
+  emailKontak       String?
+  nim               String?
+  gelar             String?
+  noWhatsapp        String?
   mataKuliahDilamar String
-  motivasi        String?
-  nilai           Float?
-  ketersediaan    String?
-  cvUrl           String?
-  transkripUrl    String?
-  status          ApplicationStatus @default(DIAJUKAN)
-  catatanPenilaian String?
-  deletedAt       DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  motivasi          String?
+  nilai             Float?
+  ketersediaan      String?
+  suratLamaranUrl   String?
+  cvUrl             String?
+  transkripUrl      String?
+  pernyataan        Boolean           @default(false)
+  status            ApplicationStatus @default(DIAJUKAN)
+  catatanPenilaian  String?
+  deletedAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   period  RecruitmentPeriod @relation(fields: [periodId], references: [id])
-  pelamar User              @relation(fields: [pelamarId], references: [id])
+  pelamar User?             @relation(fields: [pelamarId], references: [id])
 }
 
 model Notification {

@@ -4,10 +4,11 @@ test.describe("Halaman publik", () => {
   test("landing page menampilkan identitas lab dan tautan masuk", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: /Laboratorium yang tercatat/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Jadwal, peminjaman, dan layanan lab/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "Masuk", exact: true })).toBeVisible();
     await expect(page.getByText("LabOps").first()).toBeVisible();
     await expect(page.locator("#jadwal")).toBeVisible();
+    await expect(page.locator("#rekrutmen")).toBeVisible();
   });
 
   test("peta jadwal publik dapat difilter per lab", async ({ page }) => {
