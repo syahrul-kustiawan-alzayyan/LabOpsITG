@@ -7,11 +7,18 @@ import { Icon, IconName } from "@/components/Icon";
 import { PublicShell } from "@/components/PublicShell";
 import { labDisplayName, labRoom } from "@/lib/lab-label";
 
-const MENU: { href: string; label: string; icon: IconName }[] = [
-  { href: "/informasi/jadwal", label: "Jadwal Lab", icon: "calendar" },
-  { href: "/informasi/peminjaman", label: "Peminjaman Lab", icon: "booking" },
-  { href: "/informasi/kendala", label: "Pelaporan Kendala", icon: "issue" },
-  { href: "/informasi/rekrutmen", label: "Rekrutmen", icon: "recruitment" },
+const MENU: { href: string; label: string; detail: string; icon: IconName }[] = [
+  { href: "/informasi/jadwal", label: "Jadwal Lab", detail: "Praktikum dan pemakaian ruang", icon: "calendar" },
+  { href: "/informasi/peminjaman", label: "Peminjaman Lab", detail: "Ajukan pemakaian di luar jadwal", icon: "booking" },
+  { href: "/informasi/kendala", label: "Pelaporan Kendala", detail: "Laporkan kerusakan fasilitas", icon: "issue" },
+  { href: "/informasi/rekrutmen", label: "Rekrutmen", detail: "Instruktur dan asisten dosen", icon: "recruitment" },
+];
+
+const IDENTITY = [
+  { label: "Institusi", value: "Institut Teknologi Garut" },
+  { label: "Program studi", value: "Ilmu Komputer" },
+  { label: "Pengelola", value: "Laboratorium Ilmu Komputer" },
+  { label: "Lokasi", value: "Kampus ITG, Garut" },
 ];
 
 export default function HomePage() {
@@ -29,8 +36,8 @@ export default function HomePage() {
 
   return (
     <PublicShell>
-      <header className="hero">
-        <div>
+      <header className="hero hero-home">
+        <div className="hero-copy">
           <p className="hero-eyebrow">Profil laboratorium · Ilmu Komputer ITG</p>
           <h1 className="hero-title">Laboratorium Ilmu Komputer Institut Teknologi Garut.</h1>
           <p className="hero-lead">
@@ -40,93 +47,102 @@ export default function HomePage() {
           </p>
           <div className="hero-actions">
             <a href="#fasilitas" className="btn">
-              <Icon name="lab" size={15} /> Lihat fasilitas
+              <Icon name="lab" size={17} /> Lihat fasilitas
             </a>
             <a href="#menu" className="btn btn-secondary">
               Menu informasi
             </a>
           </div>
           <div className="hero-stats">
-            <span>
-              <strong>{labs.length}</strong> laboratorium
-            </span>
-            <span>
-              <strong>{activeLabs}</strong> berstatus aktif
-            </span>
-            <span>
-              <strong>{totalCapacity}</strong> total kapasitas
-            </span>
+            <div>
+              <strong>{labs.length}</strong>
+              <span>laboratorium</span>
+            </div>
+            <div>
+              <strong>{activeLabs}</strong>
+              <span>berstatus aktif</span>
+            </div>
+            <div>
+              <strong>{totalCapacity}</strong>
+              <span>total kapasitas</span>
+            </div>
           </div>
         </div>
 
-        <div className="hero-panel">
-          <div className="hero-panel-head">
-            <span>Identitas laboratorium</span>
-            <span className="badge badge-success">Ilkom ITG</span>
-          </div>
-          <div className="hero-panel-body">
-            <div className="identity-row">
-              <span className="stat-label">Institusi</span>
-              <span>Institut Teknologi Garut</span>
-            </div>
-            <div className="identity-row">
-              <span className="stat-label">Program studi</span>
-              <span>Ilmu Komputer</span>
-            </div>
-            <div className="identity-row">
-              <span className="stat-label">Pengelola</span>
-              <span>Laboratorium Ilmu Komputer</span>
-            </div>
-            <div className="identity-row">
-              <span className="stat-label">Lokasi</span>
-              <span>Kampus ITG, Garut</span>
-            </div>
-          </div>
-        </div>
+        <figure className="hero-visual">
+          <img
+            src="/images/hero-lab.jpg"
+            alt="Perangkat komputer dan mahasiswa yang bekerja bersama di laboratorium"
+          />
+          <figcaption className="hero-visual-caption">
+            <span className="badge badge-success">Laboratorium aktif</span>
+            <strong>Ruang praktikum &amp; kolaborasi</strong>
+            <span>
+              {labs.length > 0
+                ? `${labs.length} laboratorium · ${totalCapacity} kursi praktikum`
+                : "Komputer, jaringan, dan ruang belajar bersama"}
+            </span>
+          </figcaption>
+        </figure>
       </header>
 
-      <section className="feature-band">
-        <div className="section-head">
-          <div>
-            <h2 className="section-title">Tentang laboratorium</h2>
-            <p className="section-note">
-              Ruang belajar bersama untuk praktikum, tugas besar, dan kegiatan pengembangan
-              kompetensi mahasiswa Ilmu Komputer.
-            </p>
-          </div>
-        </div>
-        <div className="info-grid">
-          <article className="info-card">
-            <span className="info-icon">
-              <Icon name="lab" size={20} />
-            </span>
-            <h3>Fasilitas praktikum</h3>
-            <p className="section-note" style={{ margin: 0 }}>
-              Laboratorium digunakan untuk kegiatan praktikum mata kuliah Ilmu Komputer dengan
-              perangkat komputer dan sarana pendukung yang dirawat secara berkala.
-            </p>
-          </article>
-          <article className="info-card">
-            <span className="info-icon">
-              <Icon name="prodi" size={20} />
-            </span>
-            <h3>Pengembangan kompetensi</h3>
-            <p className="section-note" style={{ margin: 0 }}>
-              Selain praktikum, laboratorium menjadi tempat mahasiswa mengerjakan tugas, penelitian,
-              dan kegiatan pengembangan keterampilan di bidang komputasi.
-            </p>
-          </article>
+      <section className="feature-band" style={{ paddingTop: 0 }}>
+        <div className="identity-band">
+          {IDENTITY.map((item) => (
+            <div className="identity-item" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section id="fasilitas" className="feature-band" style={{ paddingTop: 0 }}>
+      <section className="feature-band">
+        <div className="about-split">
+          <figure className="media-figure">
+            <img
+              src="/images/about-lab.jpg"
+              alt="Mahasiswa bekerja bersama menggunakan komputer di ruang laboratorium"
+            />
+            <figcaption>Belajar, berdiskusi, dan mengerjakan proyek bersama.</figcaption>
+          </figure>
+          <div className="about-copy">
+            <p className="hero-eyebrow">Tentang laboratorium</p>
+            <h2 className="section-title">
+              Tempat praktikum, riset, dan pengembangan kompetensi.
+            </h2>
+            <p className="section-note">
+              Laboratorium Ilmu Komputer menjadi ruang belajar bersama bagi mahasiswa Program Studi
+              Ilmu Komputer ITG. Selain untuk praktikum terjadwal, laboratorium digunakan untuk
+              mengerjakan tugas besar, penelitian, dan kegiatan pengembangan keterampilan di bidang
+              komputasi.
+            </p>
+            <ul className="info-list info-list-lg">
+              <li>
+                <Icon name="check" size={17} /> Praktikum mata kuliah dengan perangkat yang dirawat
+                secara berkala.
+              </li>
+              <li>
+                <Icon name="check" size={17} /> Ruang pengerjaan tugas, penelitian, dan proyek
+                mahasiswa.
+              </li>
+              <li>
+                <Icon name="check" size={17} /> Pendampingan dosen, instruktur, dan asisten dosen.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="fasilitas" className="feature-band">
         <div className="section-head">
           <div>
             <h2 className="section-title">Fasilitas laboratorium</h2>
             <p className="section-note">
-              Daftar laboratorium yang dikelola Program Studi Ilmu Komputer ITG.
+              Laboratorium yang dikelola Program Studi Ilmu Komputer ITG beserta kapasitasnya.
             </p>
           </div>
+          <span className="badge badge-muted">{labs.length} ruang terdaftar</span>
         </div>
 
         {labs.length === 0 ? (
@@ -140,26 +156,27 @@ export default function HomePage() {
         ) : (
           <div className="lab-grid">
             {labs.map((lab) => (
-              <article className="card" key={lab.id}>
-                <div className="card-head">
-                  <div>
-                    <h3 className="card-title">{labDisplayName(lab.nama, lab.kode)}</h3>
-                    <p className="card-note">{lab.kode}</p>
-                  </div>
-                  <span className={`badge ${lab.status === "AKTIF" ? "badge-success" : "badge-muted"}`}>
+              <article className="card lab-card" key={lab.id}>
+                <div className="lab-card-top">
+                  <span className="info-icon">
+                    <Icon name="lab" size={20} />
+                  </span>
+                  <span
+                    className={`badge ${lab.status === "AKTIF" ? "badge-success" : "badge-muted"}`}
+                  >
                     {lab.status === "AKTIF" ? "Aktif" : lab.status}
                   </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <h3 className="lab-name">{labDisplayName(lab.nama, lab.kode)}</h3>
+                <p className="lab-code">{lab.kode}</p>
+                <div className="lab-meta">
                   <div>
-                    <div className="stat-label">Lokasi</div>
-                    <div style={{ fontSize: 15 }}>Ruang {labRoom(lab.nama, lab.lokasi)}</div>
+                    <span className="stat-label">Lokasi</span>
+                    <span className="lab-meta-value">Ruang {labRoom(lab.nama, lab.lokasi)}</span>
                   </div>
                   <div>
-                    <div className="stat-label">Kapasitas</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 15 }}>
-                      {lab.kapasitas} orang
-                    </div>
+                    <span className="stat-label">Kapasitas</span>
+                    <span className="lab-meta-value">{lab.kapasitas} orang</span>
                   </div>
                 </div>
               </article>
@@ -168,12 +185,58 @@ export default function HomePage() {
         )}
       </section>
 
-      <section id="menu" className="feature-band" style={{ paddingTop: 0 }}>
+      <section className="feature-band">
+        <div className="section-head">
+          <div>
+            <h2 className="section-title">Suasana laboratorium</h2>
+            <p className="section-note">
+              Gambaran ruang praktikum dan kegiatan komputasi yang berlangsung di laboratorium.
+            </p>
+          </div>
+        </div>
+        <div className="gallery-grid">
+          <figure className="gallery-item gallery-item-wide">
+            <img
+              src="/images/gallery-computers.jpg"
+              alt="Barisan komputer dan meja praktikum di ruang laboratorium"
+            />
+            <figcaption>
+              <span>Ruang praktikum</span>
+              <strong>Komputer siap pakai untuk kegiatan terjadwal</strong>
+            </figcaption>
+          </figure>
+          <figure className="gallery-item">
+            <img
+              src="/images/gallery-lab.jpg"
+              alt="Ruang laboratorium komputer dengan meja dan kursi kerja"
+            />
+            <figcaption>
+              <span>Area kerja</span>
+              <strong>Ruang nyaman untuk belajar dan berdiskusi</strong>
+            </figcaption>
+          </figure>
+          <figure className="gallery-item">
+            <img
+              src="/images/gallery-code.jpg"
+              alt="Layar komputer menampilkan kode program"
+            />
+            <figcaption>
+              <span>Kegiatan praktikum</span>
+              <strong>Belajar pemrograman dan pengembangan aplikasi</strong>
+            </figcaption>
+          </figure>
+        </div>
+        <p className="gallery-credit">
+          Foto suasana: Unsplash; Wikimedia Commons — Kiruthikapalani dan LN9267 (CC BY-SA 4.0).
+        </p>
+      </section>
+
+      <section id="menu" className="feature-band">
         <div className="section-head">
           <div>
             <h2 className="section-title">Menu informasi</h2>
             <p className="section-note">
-              Informasi operasional laboratorium tersedia di halaman terpisah.
+              Layanan operasional laboratorium tersedia di halaman terpisah.
             </p>
           </div>
         </div>
@@ -181,10 +244,13 @@ export default function HomePage() {
           {MENU.map((item) => (
             <Link key={item.href} href={item.href} className="menu-card">
               <span className="info-icon">
-                <Icon name={item.icon} size={18} />
+                <Icon name={item.icon} size={20} />
               </span>
-              <span>{item.label}</span>
-              <Icon name="chevron" size={16} />
+              <span className="menu-copy">
+                <strong>{item.label}</strong>
+                <span>{item.detail}</span>
+              </span>
+              <Icon name="chevron" size={18} />
             </Link>
           ))}
         </div>
@@ -193,7 +259,7 @@ export default function HomePage() {
       <section className="feature-band" style={{ paddingTop: 0 }}>
         <div className="contact-card">
           <span className="info-icon">
-            <Icon name="prodi" size={20} />
+            <Icon name="prodi" size={22} />
           </span>
           <div>
             <h3>Kontak &amp; lokasi</h3>
