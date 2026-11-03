@@ -15,7 +15,7 @@ test.describe("Halaman informasi publik", () => {
     await expect(page.getByRole("heading", { name: /rekrutmen instruktur/i })).toBeVisible();
 
     // Pakai periode yang sudah dibuka; buat baru hanya bila tidak ada lowongan.
-    let hasPeriod = (await page.locator("#lamar-posisi option").count()) > 1;
+    let hasPeriod = (await page.locator(".rec-card").count()) > 0;
     if (!hasPeriod) {
       await login(page, "koordinator");
       await page.goto("/recruitment");
@@ -28,11 +28,14 @@ test.describe("Halaman informasi publik", () => {
       await expect(page.locator('.alert-success[role="status"]')).toContainText(/dibuka/i);
       await logout(page);
       await page.goto("/");
-      hasPeriod = (await page.locator("#lamar-posisi option").count()) > 1;
+      hasPeriod = (await page.locator(".rec-card").count()) > 0;
     }
     expect(hasPeriod, "harus ada minimal satu lowongan untuk diuji").toBeTruthy();
 
-    await page.locator("#lamar-posisi").selectOption({ index: 1 });
+    // Formulir tidak tampil sebelum lowongan dipilih.
+    await expect(page.locator("#lamar")).toHaveCount(0);
+    await page.locator(".rec-card").first().getByRole("button", { name: /lamar posisi ini/i }).click();
+    await expect(page.locator("#lamar")).toBeVisible();
     const tipeLabel = await page.locator("#lamar-tipe").inputValue();
     await expect(page.locator("#lamar-mk")).not.toHaveValue("");
     await page.locator("#lamar-nama").fill(nama);
@@ -55,6 +58,7 @@ test.describe("Halaman informasi publik", () => {
     await expect(submit).toBeEnabled({ timeout: 20_000 });
     await submit.click();
     await expect(page.locator('.alert-success[role="status"]')).toContainText(/berhasil dikirim/i);
+    await expect(page.locator("#lamar")).toHaveCount(0);
 
     // Lamaran publik masuk ke antrean koordinator dengan data pelamar.
     await login(page, "koordinator");

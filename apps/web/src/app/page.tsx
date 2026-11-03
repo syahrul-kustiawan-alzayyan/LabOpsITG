@@ -56,10 +56,12 @@ export default function LandingPage() {
 
   const [periods, setPeriods] = useState<OpenPeriod[]>([]);
   const [periodsLoading, setPeriodsLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState<OpenPeriod | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [uploading, setUploading] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formMsg, setFormMsg] = useState<{ type: string; text: string } | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     api<any[]>("/labs").then(setLabs).catch(() => {});
@@ -86,21 +88,31 @@ export default function LandingPage() {
   const daySessions = filtered.filter((s) => s.hari === day);
   const todaySessions = schedules.filter((s) => s.hari === new Date().getDay()).slice(0, 4);
 
-  function pickPeriod(periodId: string) {
-    const period = periods.find((p) => p.id === periodId);
-    setForm((prev) => ({
-      ...prev,
-      periodId,
-      tipe: period?.tipe || prev.tipe,
-      mataKuliahDilamar: period?.mataKuliah || prev.mataKuliahDilamar,
-    }));
+  function selectPeriod(period: OpenPeriod) {
+    setSelectedPeriod(period);
+    setForm({
+      ...EMPTY_FORM,
+      periodId: period.id,
+      tipe: period.tipe,
+      mataKuliahDilamar: period.mataKuliah,
+    });
+    setFormMsg(null);
+    setSuccessMsg(null);
+    if (typeof document !== "undefined") {
+      window.setTimeout(() => {
+        document.getElementById("lamar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
   }
 
-  function selectPeriod(period: OpenPeriod) {
-    pickPeriod(period.id);
+  function clearSelection() {
+    setSelectedPeriod(null);
+    setForm({ ...EMPTY_FORM });
     setFormMsg(null);
     if (typeof document !== "undefined") {
-      document.getElementById("lamar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => {
+        document.getElementById("rekrutmen")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
     }
   }
 
@@ -135,12 +147,16 @@ export default function LandingPage() {
         { method: "POST", body: form },
         false,
       );
-      setFormMsg({
-        type: "success",
-        text: `${res.message}. Kami akan menghubungi Anda melalui email atau WhatsApp yang dicantumkan.`,
-      });
+      setSuccessMsg(`${res.message}. Kami akan menghubungi Anda melalui email atau WhatsApp yang dicantumkan.`);
       setForm({ ...EMPTY_FORM });
+      setSelectedPeriod(null);
+      setFormMsg(null);
       loadPeriods();
+      if (typeof document !== "undefined") {
+        window.setTimeout(() => {
+          document.getElementById("rekrutmen")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80);
+      }
     } catch (err: any) {
       setFormMsg({ type: "danger", text: err.message });
     } finally {
@@ -377,11 +393,17 @@ export default function LandingPage() {
           <div>
             <h2 className="section-title">Rekrutmen instruktur &amp; asisten dosen</h2>
             <p className="section-note">
-              Lowongan yang sedang dibuka untuk mahasiswa maupun umum. Berkas lamaran diunggah
-              langsung melalui formulir di bawah.
+              Lowongan yang sedang dibuka untuk mahasiswa maupun umum. Pilih salah satu lowongan
+              untuk membuka formulir lamaran.
             </p>
           </div>
         </div>
+
+        {successMsg && (
+          <div className="alert alert-success" role="status" style={{ marginBottom: 16 }}>
+            {successMsg}
+          </div>
+        )}
 
         {periodsLoading ? (
           <div className="card">
@@ -398,11 +420,11 @@ export default function LandingPage() {
               </p>
             </div>
           </div>
-        ) : (
+        ) : !selectedPeriod ? (
           <>
-            <div className="rec-grid" style={{ marginBottom: 18 }}>
+            <div className="rec-grid">
               {periods.map((p) => (
-                <article className="card" key={p.id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <article className="card rec-card" key={p.id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <div className="card-head" style={{ marginBottom: 0 }}>
                     <div>
                       <h3 className="card-title">{p.posisi}</h3>
@@ -434,9 +456,28 @@ export default function LandingPage() {
                 </article>
               ))}
             </div>
+            <p className="section-note" style={{ marginTop: 14 }}>
+              Pilih salah satu lowongan di atas untuk membuka formulir lamaran.
+            </p>
+          </>
+        ) : (
+          <div id="lamar" className="card">
+            <div className="selected-opening">
+              <div>
+                <span className="badge badge-success">Lowongan dipilih</span>
+                <h2 className="card-title" style={{ marginTop: 8 }}>
+                  {selectedPeriod.posisi} — {selectedPeriod.mataKuliah}
+                </h2>
+                <p className="card-note">
+                  Tenggat {formatDate(selectedPeriod.tenggat)} · Kuota {selectedPeriod.kuota} orang
+                </p>
+              </div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={clearSelection}>
+                ← Ganti lowongan
+              </button>
+            </div>
 
-            <div id="lamar" className="card">
-              <div className="card-head">
+            <div className="card-head">
                 <div>
                   <h2 className="card-title">Formulir lamaran</h2>
                   <p className="card-note">
@@ -453,22 +494,6 @@ export default function LandingPage() {
 
               <form onSubmit={submitApplication} className="form-grid">
                 <div className="form-row">
-                  <div className="field">
-                    <label htmlFor="lamar-posisi">Posisi yang dilamar</label>
-                    <select
-                      id="lamar-posisi"
-                      value={form.periodId}
-                      onChange={(e) => pickPeriod(e.target.value)}
-                      required
-                    >
-                      <option value="">Pilih posisi</option>
-                      {periods.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.posisi} — {p.mataKuliah}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                   <div className="field">
                     <label htmlFor="lamar-tipe">Jenis rekrutmen</label>
                     <input
@@ -585,8 +610,7 @@ export default function LandingPage() {
                   </button>
                 </div>
               </form>
-            </div>
-          </>
+          </div>
         )}
       </section>
 
