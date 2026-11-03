@@ -1620,21 +1620,25 @@ input[type="checkbox"] {
 
 /* --- tipografi halaman publik ----------------------------- */
 .landing {
+  --public-gutter: clamp(24px, 3.5vw, 64px);
   font-size: 17px;
 }
-.landing-nav,
-.hero,
-.feature-band,
-.landing-foot-inner {
-  max-width: 1240px;
+.landing .landing-nav,
+.landing .hero,
+.landing .feature-band,
+.landing .landing-foot-inner {
+  width: 100%;
+  max-width: 1920px;
 }
-.hero {
-  padding-left: 32px;
-  padding-right: 32px;
+.landing .landing-nav,
+.landing .hero,
+.landing .feature-band {
+  padding-left: var(--public-gutter);
+  padding-right: var(--public-gutter);
 }
-.feature-band {
-  padding-left: 32px;
-  padding-right: 32px;
+.landing .landing-foot {
+  padding-left: var(--public-gutter);
+  padding-right: var(--public-gutter);
 }
 .landing .hero-eyebrow {
   font-size: 14.5px;
@@ -2044,6 +2048,12 @@ input[type="checkbox"] {
   display: none;
 }
 
+@media (min-width: 1500px) {
+  .lab-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1100px) {
   .ops-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2195,6 +2205,13 @@ input[type="checkbox"] {
   }
   .hero,
   .feature-band {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .landing .hero,
+  .landing .feature-band,
+  .landing .landing-nav,
+  .landing .landing-foot {
     padding-left: 18px;
     padding-right: 18px;
   }
