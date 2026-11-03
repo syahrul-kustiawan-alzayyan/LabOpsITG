@@ -14,6 +14,7 @@ const NAV: NavItem[] = [
   { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional" },
   { href: "/issues", label: "Kendala", icon: "issue", roles: null, group: "Operasional" },
   { href: "/attendance", label: "Absensi", icon: "attendance", roles: null, group: "Operasional" },
+  { href: "/courses", label: "Mata Kuliah", icon: "book", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen" },
   { href: "/labs", label: "Lab", icon: "lab", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen" },
   { href: "/inventory", label: "Inventaris", icon: "inventory", roles: null, group: "Manajemen" },
   { href: "/staff", label: "Instruktur & Asisten", icon: "staff", roles: null, group: "Manajemen" },

@@ -1,20 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
-import { dayOfWeekJakarta, startOfJakartaDay } from "../common/time";
-
-function timeToMin(t: string): number {
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function daysOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
-  return aStart <= bEnd && aEnd >= bStart;
-}
-
-function timeOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
-  return timeToMin(aStart) < timeToMin(bEnd) && timeToMin(aEnd) > timeToMin(bStart);
-}
+import { startOfJakartaDay } from "../common/time";
+import { findScheduleConflict, timeToMin } from "../common/schedule-conflict";
 
 @Injectable()
 export class SchedulesService {
@@ -30,7 +18,11 @@ export class SchedulesService {
     const limit = Math.min(500, Math.max(1, Number(q.limit) || 200));
     return this.prisma.schedule.findMany({
       where,
-      include: { lab: { select: { kode: true, nama: true } }, pengampu: { select: { id: true, nama: true, email: true } } },
+      include: {
+        lab: { select: { kode: true, nama: true } },
+        pengampu: { select: { id: true, nama: true, email: true } },
+        course: { select: { id: true, kode: true, nama: true, instruktur: { select: { id: true, nama: true } } } },
+      },
       orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
       skip: (page - 1) * limit,
       take: limit,
@@ -44,7 +36,7 @@ export class SchedulesService {
   }
 
   findOne(id: string) {
-    return this.prisma.schedule.findUnique({ where: { id }, include: { lab: true, pengampu: true } }).then(async (s) => {
+    return this.prisma.schedule.findUnique({ where: { id }, include: { lab: true, pengampu: true, course: { include: { dosen: { select: { id: true, nama: true } }, instruktur: { select: { id: true, nama: true } } } } } }).then(async (s) => {
       if (!s) return s;
       const users = s.asistenIds?.length ? await this.prisma.user.findMany({ where: { id: { in: s.asistenIds } }, select: { id: true, nama: true, email: true } }) : [];
       return { ...s, asisten: users };
@@ -59,7 +51,11 @@ export class SchedulesService {
         status: "AKTIF",
         OR: [{ pengampuId: userId }, { enrollments: { some: { userId, deletedAt: null } } }],
       },
-      include: { lab: { select: { kode: true, nama: true } }, pengampu: { select: { id: true, nama: true, email: true } } },
+      include: {
+        lab: { select: { kode: true, nama: true } },
+        pengampu: { select: { id: true, nama: true, email: true } },
+        course: { select: { id: true, kode: true, nama: true, instruktur: { select: { id: true, nama: true } } } },
+      },
       orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
     });
     const ids = Array.from(new Set(schedules.flatMap((s) => s.asistenIds || [])));
@@ -68,32 +64,8 @@ export class SchedulesService {
     return schedules.map((s) => ({ ...s, asisten: (s.asistenIds || []).map((id) => map[id]).filter(Boolean) }));
   }
 
-  async checkConflict(params: { labId: string; hari: number; jamMulai: string; jamSelesai: string; tanggalMulai: Date; tanggalSelesai: Date; excludeId?: string }) {
-    const { labId, hari, jamMulai, jamSelesai, tanggalMulai, tanggalSelesai, excludeId } = params;
-    // existing schedules
-    const existing = await this.prisma.schedule.findMany({
-      where: { labId, hari, deletedAt: null, status: "AKTIF", ...(excludeId ? { id: { not: excludeId } } : {}) },
-    });
-    for (const s of existing) {
-      if (daysOverlap(s.tanggalMulai, s.tanggalSelesai, tanggalMulai, tanggalSelesai) && timeOverlap(s.jamMulai, s.jamSelesai, jamMulai, jamSelesai)) {
-        return { conflict: true, type: "jadwal", item: s };
-      }
-    }
-    // approved bookings on same day-of-week within date range
-    const bookings = await this.prisma.booking.findMany({
-      where: { labId, status: "DISETUJUI", deletedAt: null },
-    });
-    const mulaiDay = startOfJakartaDay(tanggalMulai);
-    const selesaiDay = startOfJakartaDay(tanggalSelesai);
-    for (const b of bookings) {
-      const bDate = startOfJakartaDay(b.tanggal);
-      if (dayOfWeekJakarta(bDate) !== hari) continue;
-      if (bDate < mulaiDay || bDate > selesaiDay) continue;
-      if (timeOverlap(b.jamMulai, b.jamSelesai, jamMulai, jamSelesai)) {
-        return { conflict: true, type: "peminjaman", item: b };
-      }
-    }
-    return { conflict: false };
+  checkConflict(params: { labId: string; hari: number; jamMulai: string; jamSelesai: string; tanggalMulai: Date; tanggalSelesai: Date; excludeId?: string }) {
+    return findScheduleConflict(this.prisma, params);
   }
 
   async create(data: any, actorId?: string) {
@@ -108,6 +80,7 @@ export class SchedulesService {
     const sch = await this.prisma.schedule.create({
       data: {
         labId: data.labId,
+        mataKuliahId: data.mataKuliahId || null,
         mataKuliah: data.mataKuliah,
         kelas: data.kelas,
         pengampuId: data.pengampuId || null,
@@ -143,6 +116,7 @@ export class SchedulesService {
       where: { id },
       data: {
         labId,
+        mataKuliahId: data.mataKuliahId !== undefined ? (data.mataKuliahId || null) : existing.mataKuliahId,
         mataKuliah: data.mataKuliah ?? existing.mataKuliah,
         kelas: data.kelas ?? existing.kelas,
         pengampuId: data.pengampuId !== undefined ? (data.pengampuId || null) : existing.pengampuId,
@@ -174,6 +148,7 @@ export class SchedulesService {
     if (!src) throw new NotFoundException("Jadwal tidak ditemukan");
     return this.create({
       labId: src.labId,
+      mataKuliahId: src.mataKuliahId,
       mataKuliah: src.mataKuliah,
       kelas: src.kelas,
       pengampuId: src.pengampuId,

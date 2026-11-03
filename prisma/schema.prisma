@@ -36,6 +36,11 @@ enum ScheduleType {
   KEGIATAN_KHUSUS
 }
 
+enum MataKuliahStatus {
+  AKTIF
+  NONAKTIF
+}
+
 enum ScheduleStatus {
   AKTIF
   DIBATALKAN
@@ -126,6 +131,8 @@ model User {
   updatedAt    DateTime   @updatedAt
 
   schedulesAsPengampu Schedule[] @relation("Pengampu")
+  mataKuliahDosen      MataKuliah[] @relation("MataKuliahDosen")
+  mataKuliahInstruktur MataKuliah[] @relation("MataKuliahInstruktur")
   bookings            Booking[]  @relation("Peminjam")
   processedBookings   Booking[]  @relation("Pemroses")
   issues              Issue[]    @relation("Pelapor")
@@ -160,6 +167,7 @@ model Lab {
 model Schedule {
   id            String         @id @default(cuid())
   labId         String
+  mataKuliahId  String?
   mataKuliah    String
   kelas         String
   pengampuId    String?
@@ -178,12 +186,37 @@ model Schedule {
 
   lab       Lab   @relation(fields: [labId], references: [id])
   pengampu  User? @relation("Pengampu", fields: [pengampuId], references: [id])
+  course    MataKuliah? @relation(fields: [mataKuliahId], references: [id])
   bookings  Booking[]
   attendances Attendance[]
   enrollments ClassEnrollment[]
   qrTokens    SessionQrToken[]
 
   @@index([labId, hari, jamMulai])
+  @@index([mataKuliahId])
+}
+
+model MataKuliah {
+  id           String           @id @default(cuid())
+  kode         String           @unique
+  nama         String
+  sks          Int              @default(3)
+  semester     Int              @default(1)
+  dosenId      String?
+  instrukturId String?
+  asistenIds   String[]         @default([])
+  deskripsi    String?
+  status       MataKuliahStatus @default(AKTIF)
+  deletedAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  dosen      User?      @relation("MataKuliahDosen", fields: [dosenId], references: [id])
+  instruktur User?      @relation("MataKuliahInstruktur", fields: [instrukturId], references: [id])
+  schedules  Schedule[]
+
+  @@index([status])
+  @@index([nama])
 }
 
 model Booking {

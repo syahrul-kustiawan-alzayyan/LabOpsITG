@@ -7,6 +7,7 @@ import { HealthModule } from "./health/health.module";
 import { AuditModule } from "./audit/audit.module";
 import { LabsModule } from "./labs/labs.module";
 import { SchedulesModule } from "./schedules/schedules.module";
+import { CoursesModule } from "./courses/courses.module";
 import { BookingsModule } from "./bookings/bookings.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { IssuesModule } from "./issues/issues.module";
@@ -17,6 +18,6 @@ import { RecruitmentModule } from "./recruitment/recruitment.module";
 import { FilesModule } from "./files/files.module";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, UsersModule, HealthModule, AuditModule, LabsModule, SchedulesModule, BookingsModule, NotificationsModule, IssuesModule, InventoryModule, AttendanceModule, ReportsModule, RecruitmentModule, FilesModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, UsersModule, HealthModule, AuditModule, LabsModule, SchedulesModule, CoursesModule, BookingsModule, NotificationsModule, IssuesModule, InventoryModule, AttendanceModule, ReportsModule, RecruitmentModule, FilesModule],
 })
 export class AppModule {}

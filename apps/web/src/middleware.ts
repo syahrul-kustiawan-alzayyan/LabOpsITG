@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 const PUBLIC_PATHS = ["/", "/login", "/manifest.webmanifest", "/favicon.ico", "/icon.svg", "/apple-icon.png"];
 
 const ROLE_RULES: { prefix: string; roles: string[] }[] = [
+  { prefix: "/courses", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
   { prefix: "/users", roles: ["ADMIN_SYSTEM"] },
   { prefix: "/audit", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
   { prefix: "/labs", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
