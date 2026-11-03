@@ -34,6 +34,7 @@ export function middleware(req: NextRequest) {
 
   if (
     PUBLIC_PATHS.includes(pathname) ||
+    pathname.startsWith("/informasi") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/uploads") ||

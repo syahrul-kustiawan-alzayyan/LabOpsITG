@@ -8,10 +8,22 @@ test.describe("Halaman informasi publik", () => {
     const email = `pelamar.${Date.now()}@example.com`;
 
     await page.goto("/");
-    await expect(page.locator(".hero-title")).toContainText(/jadwal/i);
-    await expect(page.locator("#jadwal")).toBeVisible();
+    await expect(page.locator(".hero-title")).toContainText(/Laboratorium Ilmu Komputer/i);
+    await expect(page.locator(".landing-nav-link", { hasText: "Jadwal Lab" })).toHaveAttribute(
+      "href",
+      "/informasi/jadwal",
+    );
+
+    await page.goto("/informasi/jadwal");
+    await expect(page.locator("#landing-lab")).toBeVisible();
+
+    await page.goto("/informasi/peminjaman");
     await expect(page.getByRole("link", { name: /halaman pengajuan/i })).toHaveAttribute("href", "/bookings");
+
+    await page.goto("/informasi/kendala");
     await expect(page.getByRole("link", { name: /halaman pelaporan/i })).toHaveAttribute("href", "/issues");
+
+    await page.goto("/informasi/rekrutmen");
     await expect(page.getByRole("heading", { name: /rekrutmen instruktur/i })).toBeVisible();
 
     // Pakai periode yang sudah dibuka; buat baru hanya bila tidak ada lowongan.
@@ -27,7 +39,7 @@ test.describe("Halaman informasi publik", () => {
       await page.getByRole("button", { name: /buka periode/i }).click();
       await expect(page.locator('.alert-success[role="status"]')).toContainText(/dibuka/i);
       await logout(page);
-      await page.goto("/");
+      await page.goto("/informasi/rekrutmen");
       hasPeriod = (await page.locator(".rec-card").count()) > 0;
     }
     expect(hasPeriod, "harus ada minimal satu lowongan untuk diuji").toBeTruthy();

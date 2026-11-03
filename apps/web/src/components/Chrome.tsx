@@ -57,7 +57,8 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   const [today, setToday] = useState("");
   const popRef = useRef<HTMLDivElement>(null);
 
-  const isPublic = pathname === "/login" || pathname === "/";
+  const isPublic =
+    pathname === "/login" || pathname === "/" || pathname.startsWith("/informasi");
 
   useEffect(() => {
     setOpen(window.localStorage.getItem("labops.rail") === "open");

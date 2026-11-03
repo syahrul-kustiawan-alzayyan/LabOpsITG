@@ -2,624 +2,212 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api, fileUrl, uploadPublicFile } from "@/lib/api";
-import { Icon } from "@/components/Icon";
-import { ScheduleGrid } from "@/components/ScheduleGrid";
+import { api } from "@/lib/api";
+import { Icon, IconName } from "@/components/Icon";
+import { PublicShell } from "@/components/PublicShell";
+import { labDisplayName, labRoom } from "@/lib/lab-label";
 
-const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const MENU: { href: string; label: string; icon: IconName }[] = [
+  { href: "/informasi/jadwal", label: "Jadwal Lab", icon: "calendar" },
+  { href: "/informasi/peminjaman", label: "Peminjaman Lab", icon: "booking" },
+  { href: "/informasi/kendala", label: "Pelaporan Kendala", icon: "issue" },
+  { href: "/informasi/rekrutmen", label: "Rekrutmen", icon: "recruitment" },
+];
 
-type OpenPeriod = {
-  id: string;
-  posisi: string;
-  tipe: "INSTRUKTUR" | "ASISTEN_DOSEN";
-  mataKuliah: string;
-  kuota: number;
-  persyaratan?: string | null;
-  tenggat: string;
-  _count?: { applications: number };
-};
-
-const APPLICANT_TYPE: Record<string, string> = {
-  INSTRUKTUR: "Instruktur",
-  ASISTEN_DOSEN: "Asisten Dosen",
-};
-
-const EMPTY_FORM = {
-  periodId: "",
-  tipe: "ASISTEN_DOSEN",
-  namaLengkap: "",
-  emailKontak: "",
-  nim: "",
-  gelar: "",
-  noWhatsapp: "",
-  mataKuliahDilamar: "",
-  suratLamaranUrl: "",
-  cvUrl: "",
-  transkripUrl: "",
-  pernyataan: false,
-};
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-export default function LandingPage() {
+export default function HomePage() {
   const [labs, setLabs] = useState<any[]>([]);
-  const [schedules, setSchedules] = useState<any[]>([]);
-  const [filterLab, setFilterLab] = useState("");
-  const [day, setDay] = useState<number>(new Date().getDay());
-  const [me, setMe] = useState<any>(null);
-
-  const [periods, setPeriods] = useState<OpenPeriod[]>([]);
-  const [periodsLoading, setPeriodsLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState<OpenPeriod | null>(null);
-  const [form, setForm] = useState({ ...EMPTY_FORM });
-  const [uploading, setUploading] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [formMsg, setFormMsg] = useState<{ type: string; text: string } | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     api<any[]>("/labs").then(setLabs).catch(() => {});
-    api<any[]>("/schedules").then(setSchedules).catch(() => {});
-    // Jangan memaksa pengunjung anonim ke halaman login.
-    api<{ user: any }>("/auth/me", {}, false)
-      .then((d) => setMe(d.user))
-      .catch(() => setMe(null));
-    loadPeriods();
   }, []);
 
-  function loadPeriods() {
-    setPeriodsLoading(true);
-    api<OpenPeriod[]>("/public/recruitment/periods", {}, false)
-      .then((data) => setPeriods(Array.isArray(data) ? data : []))
-      .catch(() => setPeriods([]))
-      .finally(() => setPeriodsLoading(false));
-  }
-
-  const filtered = useMemo(
-    () => (filterLab ? schedules.filter((s) => s.labId === filterLab) : schedules),
-    [schedules, filterLab],
+  const totalCapacity = useMemo(
+    () => labs.reduce((sum, lab) => sum + (Number(lab.kapasitas) || 0), 0),
+    [labs],
   );
-  const daySessions = filtered.filter((s) => s.hari === day);
-  const todaySessions = schedules.filter((s) => s.hari === new Date().getDay()).slice(0, 4);
-
-  function selectPeriod(period: OpenPeriod) {
-    setSelectedPeriod(period);
-    setForm({
-      ...EMPTY_FORM,
-      periodId: period.id,
-      tipe: period.tipe,
-      mataKuliahDilamar: period.mataKuliah,
-    });
-    setFormMsg(null);
-    setSuccessMsg(null);
-    if (typeof document !== "undefined") {
-      window.setTimeout(() => {
-        document.getElementById("lamar")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 80);
-    }
-  }
-
-  function clearSelection() {
-    setSelectedPeriod(null);
-    setForm({ ...EMPTY_FORM });
-    setFormMsg(null);
-    if (typeof document !== "undefined") {
-      window.setTimeout(() => {
-        document.getElementById("rekrutmen")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 0);
-    }
-  }
-
-  async function onFile(key: "suratLamaranUrl" | "cvUrl" | "transkripUrl", e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(key);
-    setFormMsg(null);
-    try {
-      const res = await uploadPublicFile(file);
-      setForm((prev) => ({ ...prev, [key]: res.url }));
-      setFormMsg({ type: "success", text: `Berkas ${file.name} berhasil diunggah.` });
-    } catch (err: any) {
-      setFormMsg({ type: "danger", text: err.message });
-    } finally {
-      setUploading("");
-      e.target.value = "";
-    }
-  }
-
-  async function submitApplication(e: React.FormEvent) {
-    e.preventDefault();
-    setFormMsg(null);
-    if (!form.pernyataan) {
-      setFormMsg({ type: "danger", text: "Centang pernyataan kebenaran data sebelum mengirim." });
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await api<{ message: string }>(
-        "/public/recruitment/applications",
-        { method: "POST", body: form },
-        false,
-      );
-      setSuccessMsg(`${res.message}. Kami akan menghubungi Anda melalui email atau WhatsApp yang dicantumkan.`);
-      setForm({ ...EMPTY_FORM });
-      setSelectedPeriod(null);
-      setFormMsg(null);
-      loadPeriods();
-      if (typeof document !== "undefined") {
-        window.setTimeout(() => {
-          document.getElementById("rekrutmen")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 80);
-      }
-    } catch (err: any) {
-      setFormMsg({ type: "danger", text: err.message });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function uploadField(
-    key: "suratLamaranUrl" | "cvUrl" | "transkripUrl",
-    id: string,
-    label: string,
-  ) {
-    const value = form[key];
-    return (
-      <div className="field">
-        <label htmlFor={id}>{label}</label>
-        <input
-          id={id}
-          className="input"
-          type="file"
-          accept="application/pdf,image/png,image/jpeg,image/webp"
-          onChange={(e) => onFile(key, e)}
-          disabled={uploading === key}
-        />
-        {uploading === key && <span className="field-hint">Mengunggah berkas…</span>}
-        {value && (
-          <a href={fileUrl(value)} target="_blank" rel="noreferrer" className="field-hint">
-            Berkas terunggah — buka berkas
-          </a>
-        )}
-      </div>
-    );
-  }
+  const activeLabs = labs.filter((lab) => lab.status === "AKTIF").length;
 
   return (
-    <div className="landing">
-      <nav className="landing-nav">
-        <Link href="/" className="brand-inline">
-          <span className="rail-mark">L</span>
-          <span>
-            <span className="brand-name">LabOps</span>
-            <span className="brand-sub">Ilkom ITG</span>
-          </span>
-        </Link>
-        <div className="landing-nav-links">
-          <a href="#jadwal" className="landing-nav-link">
-            Jadwal
-          </a>
-          <a href="#peminjaman" className="landing-nav-link">
-            Peminjaman
-          </a>
-          <a href="#kendala" className="landing-nav-link">
-            Kendala
-          </a>
-          <a href="#rekrutmen" className="landing-nav-link">
-            Rekrutmen
-          </a>
-          {me ? (
-            <Link href="/dashboard" className="btn btn-sm">
-              Buka dasbor
-            </Link>
-          ) : (
-            <Link href="/login" className="btn btn-sm">
-              Masuk
-            </Link>
-          )}
-        </div>
-      </nav>
-
+    <PublicShell>
       <header className="hero">
         <div>
-          <p className="hero-eyebrow">Informasi laboratorium · Ilmu Komputer ITG</p>
-          <h1 className="hero-title">Jadwal, peminjaman, dan layanan lab dalam satu halaman.</h1>
+          <p className="hero-eyebrow">Profil laboratorium · Ilmu Komputer ITG</p>
+          <h1 className="hero-title">Laboratorium Ilmu Komputer Institut Teknologi Garut.</h1>
           <p className="hero-lead">
-            Laboratorium Ilmu Komputer Institut Teknologi Garut. Lihat jadwal praktikum yang tersedia,
-            ajukan peminjaman di luar jadwal, laporkan kendala pelaksanaan laboratorium, dan ikuti
-            rekrutmen instruktur atau asisten dosen bila dibuka.
+            Laboratorium Ilmu Komputer ITG mendukung kegiatan praktikum, penelitian, dan
+            pengembangan kompetensi mahasiswa Program Studi Ilmu Komputer. Fasilitas laboratorium
+            dikelola untuk memastikan kegiatan akademik berjalan tertib, aman, dan terawat.
           </p>
           <div className="hero-actions">
-            <a href="#jadwal" className="btn">
-              <Icon name="calendar" size={15} /> Lihat jadwal lab
+            <a href="#fasilitas" className="btn">
+              <Icon name="lab" size={15} /> Lihat fasilitas
             </a>
-            <Link href="/bookings" className="btn btn-secondary">
-              <Icon name="booking" size={15} /> Ajukan peminjaman
-            </Link>
-            <Link href="/issues" className="btn btn-secondary">
-              <Icon name="issue" size={15} /> Laporkan kendala
-            </Link>
+            <a href="#menu" className="btn btn-secondary">
+              Menu informasi
+            </a>
           </div>
           <div className="hero-stats">
             <span>
-              <strong>{labs.length}</strong> lab aktif
+              <strong>{labs.length}</strong> laboratorium
             </span>
             <span>
-              <strong>{schedules.length}</strong> sesi terjadwal
+              <strong>{activeLabs}</strong> berstatus aktif
             </span>
             <span>
-              <strong>{periods.length}</strong> lowongan dibuka
+              <strong>{totalCapacity}</strong> total kapasitas
             </span>
           </div>
         </div>
 
         <div className="hero-panel">
           <div className="hero-panel-head">
-            <span>Jadwal hari ini · {HARI[new Date().getDay()]}</span>
-            <span className="badge badge-success">live</span>
+            <span>Identitas laboratorium</span>
+            <span className="badge badge-success">Ilkom ITG</span>
           </div>
           <div className="hero-panel-body">
-            {todaySessions.length === 0 ? (
-              <div className="empty" style={{ padding: "20px 0" }}>
-                <Icon name="calendar" size={22} />
-                <p className="empty-title">Belum ada sesi hari ini</p>
-                <p className="empty-text">Lab tersedia untuk diajukan.</p>
-              </div>
-            ) : (
-              todaySessions.map((s) => (
-                <div className="hero-session" key={s.id}>
-                  <span className="hero-time">{s.jamMulai}</span>
-                  <span>
-                    <span className="hero-course">{s.mataKuliah}</span>
-                    <span className="hero-room" style={{ display: "block" }}>
-                      kelas {s.kelas}
-                    </span>
-                  </span>
-                  <span className="hero-room">{s.lab?.kode}</span>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="popover-foot">
-            <span>{schedules.length} sesi semester ini</span>
-            <a href="#jadwal">Lihat semua</a>
+            <div className="identity-row">
+              <span className="stat-label">Institusi</span>
+              <span>Institut Teknologi Garut</span>
+            </div>
+            <div className="identity-row">
+              <span className="stat-label">Program studi</span>
+              <span>Ilmu Komputer</span>
+            </div>
+            <div className="identity-row">
+              <span className="stat-label">Pengelola</span>
+              <span>Laboratorium Ilmu Komputer</span>
+            </div>
+            <div className="identity-row">
+              <span className="stat-label">Lokasi</span>
+              <span>Kampus ITG, Garut</span>
+            </div>
           </div>
         </div>
       </header>
 
-      <section id="jadwal" className="feature-band">
+      <section className="feature-band">
         <div className="section-head">
           <div>
-            <h2 className="section-title">Jadwal lab yang tersedia</h2>
+            <h2 className="section-title">Tentang laboratorium</h2>
             <p className="section-note">
-              Jadwal praktikum yang sedang berjalan. Slot di luar jadwal ini dapat diajukan melalui
-              halaman peminjaman.
+              Ruang belajar bersama untuk praktikum, tugas besar, dan kegiatan pengembangan
+              kompetensi mahasiswa Ilmu Komputer.
             </p>
           </div>
-          <div className="field" style={{ minWidth: 240 }}>
-            <label htmlFor="landing-lab">Filter lab</label>
-            <select id="landing-lab" value={filterLab} onChange={(e) => setFilterLab(e.target.value)}>
-              <option value="">Semua lab</option>
-              {labs.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.kode} — {l.nama}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
-
-        <div className="chip-row" style={{ marginBottom: 14 }}>
-          {HARI.map((h, i) => (
-            <button key={h} type="button" className={`chip ${day === i ? "is-active" : ""}`} onClick={() => setDay(i)}>
-              {h}
-            </button>
-          ))}
-        </div>
-
-        <ScheduleGrid
-          schedules={daySessions}
-          labs={labs}
-          emptyLabel={`Tidak ada sesi pada hari ${HARI[day]}`}
-        />
-      </section>
-
-      <section id="peminjaman" className="feature-band" style={{ paddingTop: 0 }}>
         <div className="info-grid">
           <article className="info-card">
             <span className="info-icon">
-              <Icon name="booking" size={20} />
+              <Icon name="lab" size={20} />
             </span>
-            <h3>Peminjaman laboratorium</h3>
-            <p className="section-note" style={{ marginTop: 0 }}>
-              Butuh lab di luar jadwal praktikum? Ajukan slot, lalu pantau keputusan koordinator.
+            <h3>Fasilitas praktikum</h3>
+            <p className="section-note" style={{ margin: 0 }}>
+              Laboratorium digunakan untuk kegiatan praktikum mata kuliah Ilmu Komputer dengan
+              perangkat komputer dan sarana pendukung yang dirawat secara berkala.
             </p>
-            <ul className="info-list">
-              <li>
-                <Icon name="check" size={15} /> Pilih lab, tanggal, dan jam pemakaian.
-              </li>
-              <li>
-                <Icon name="check" size={15} /> Konflik dengan jadwal atau peminjaman lain dicegah otomatis.
-              </li>
-              <li>
-                <Icon name="check" size={15} /> Satu persetujuan koordinator, status terlihat di dasbor.
-              </li>
-            </ul>
-            <div className="info-cta">
-              <Link href="/bookings" className="btn">
-                <Icon name="booking" size={15} /> Buka halaman pengajuan
-              </Link>
-              <p className="info-hint">Anda akan diminta masuk dengan akun kampus.</p>
-            </div>
           </article>
-
-          <article id="kendala" className="info-card">
+          <article className="info-card">
             <span className="info-icon">
-              <Icon name="issue" size={20} />
+              <Icon name="prodi" size={20} />
             </span>
-            <h3>Pelaporan kendala laboratorium</h3>
-            <p className="section-note" style={{ marginTop: 0 }}>
-              Laporkan kerusakan perangkat, jaringan, atau fasilitas lab agar ditindaklanjuti.
+            <h3>Pengembangan kompetensi</h3>
+            <p className="section-note" style={{ margin: 0 }}>
+              Selain praktikum, laboratorium menjadi tempat mahasiswa mengerjakan tugas, penelitian,
+              dan kegiatan pengembangan keterampilan di bidang komputasi.
             </p>
-            <ul className="info-list">
-              <li>
-                <Icon name="check" size={15} /> Setiap laporan mendapat nomor tiket dan riwayat status.
-              </li>
-              <li>
-                <Icon name="check" size={15} /> Koordinator menetapkan penanggung jawab dan tenggat.
-              </li>
-              <li>
-                <Icon name="check" size={15} /> Notifikasi in-app menjaga Anda tetap tahu perkembangannya.
-              </li>
-            </ul>
-            <div className="info-cta">
-              <Link href="/issues" className="btn">
-                <Icon name="issue" size={15} /> Buka halaman pelaporan
-              </Link>
-              <p className="info-hint">Anda akan diminta masuk dengan akun kampus.</p>
-            </div>
           </article>
         </div>
       </section>
 
-      <section id="rekrutmen" className="feature-band" style={{ paddingTop: 0 }}>
+      <section id="fasilitas" className="feature-band" style={{ paddingTop: 0 }}>
         <div className="section-head">
           <div>
-            <h2 className="section-title">Rekrutmen instruktur &amp; asisten dosen</h2>
+            <h2 className="section-title">Fasilitas laboratorium</h2>
             <p className="section-note">
-              Lowongan yang sedang dibuka untuk mahasiswa maupun umum. Pilih salah satu lowongan
-              untuk membuka formulir lamaran.
+              Daftar laboratorium yang dikelola Program Studi Ilmu Komputer ITG.
             </p>
           </div>
         </div>
 
-        {successMsg && (
-          <div className="alert alert-success" role="status" style={{ marginBottom: 16 }}>
-            {successMsg}
-          </div>
-        )}
-
-        {periodsLoading ? (
-          <div className="card">
-            <div className="skeleton" style={{ width: "38%" }} />
-            <div className="skeleton" style={{ width: "72%", marginTop: 10 }} />
-          </div>
-        ) : periods.length === 0 ? (
+        {labs.length === 0 ? (
           <div className="card">
             <div className="empty">
-              <Icon name="recruitment" size={24} />
-              <p className="empty-title">Belum ada lowongan yang dibuka</p>
-              <p className="empty-text">
-                Informasi rekrutmen instruktur atau asisten dosen akan tampil di sini ketika dibuka.
-              </p>
+              <Icon name="lab" size={24} />
+              <p className="empty-title">Data laboratorium belum tersedia</p>
+              <p className="empty-text">Informasi fasilitas akan tampil di sini.</p>
             </div>
           </div>
-        ) : !selectedPeriod ? (
-          <>
-            <div className="rec-grid">
-              {periods.map((p) => (
-                <article className="card rec-card" key={p.id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div className="card-head" style={{ marginBottom: 0 }}>
-                    <div>
-                      <h3 className="card-title">{p.posisi}</h3>
-                      <p className="card-note">{p.mataKuliah}</p>
-                    </div>
-                    <span className="badge badge-success">Dibuka</span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <div>
-                      <div className="stat-label">Kuota</div>
-                      <div style={{ fontFamily: "var(--font-mono)" }}>{p.kuota} orang</div>
-                    </div>
-                    <div>
-                      <div className="stat-label">Tenggat</div>
-                      <div style={{ fontSize: 15 }}>{formatDate(p.tenggat)}</div>
-                    </div>
-                  </div>
-                  {p.persyaratan && (
-                    <p style={{ fontSize: 14.5, color: "var(--ink-soft)", margin: 0 }}>{p.persyaratan}</p>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    style={{ marginTop: "auto" }}
-                    onClick={() => selectPeriod(p)}
-                  >
-                    <Icon name="recruitment" size={14} /> Lamar posisi ini
-                  </button>
-                </article>
-              ))}
-            </div>
-            <p className="section-note" style={{ marginTop: 14 }}>
-              Pilih salah satu lowongan di atas untuk membuka formulir lamaran.
-            </p>
-          </>
         ) : (
-          <div id="lamar" className="card">
-            <div className="selected-opening">
-              <div>
-                <span className="badge badge-success">Lowongan dipilih</span>
-                <h2 className="card-title" style={{ marginTop: 8 }}>
-                  {selectedPeriod.posisi} — {selectedPeriod.mataKuliah}
-                </h2>
-                <p className="card-note">
-                  Tenggat {formatDate(selectedPeriod.tenggat)} · Kuota {selectedPeriod.kuota} orang
-                </p>
-              </div>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={clearSelection}>
-                ← Ganti lowongan
-              </button>
-            </div>
-
-            <div className="card-head">
-                <div>
-                  <h2 className="card-title">Formulir lamaran</h2>
-                  <p className="card-note">
-                    Lengkapi data dan unggah surat lamaran, CV, serta transkrip nilai (PDF/gambar, maks. 10 MB).
-                  </p>
-                </div>
-              </div>
-
-              {formMsg && (
-                <div className={`alert alert-${formMsg.type}`} role="status" style={{ marginBottom: 14 }}>
-                  {formMsg.text}
-                </div>
-              )}
-
-              <form onSubmit={submitApplication} className="form-grid">
-                <div className="form-row">
-                  <div className="field">
-                    <label htmlFor="lamar-tipe">Jenis rekrutmen</label>
-                    <input
-                      id="lamar-tipe"
-                      className="input"
-                      value={APPLICANT_TYPE[form.tipe] || form.tipe}
-                      readOnly
-                    />
-                    <span className="field-hint">Mengikuti lowongan yang dipilih.</span>
+          <div className="lab-grid">
+            {labs.map((lab) => (
+              <article className="card" key={lab.id}>
+                <div className="card-head">
+                  <div>
+                    <h3 className="card-title">{labDisplayName(lab.nama, lab.kode)}</h3>
+                    <p className="card-note">{lab.kode}</p>
                   </div>
-                  <div className="field">
-                    <label htmlFor="lamar-nama">Nama lengkap</label>
-                    <input
-                      id="lamar-nama"
-                      className="input"
-                      value={form.namaLengkap}
-                      onChange={(e) => setForm({ ...form, namaLengkap: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="lamar-email">Email</label>
-                    <input
-                      id="lamar-email"
-                      className="input"
-                      type="email"
-                      value={form.emailKontak}
-                      onChange={(e) => setForm({ ...form, emailKontak: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  {form.tipe === "ASISTEN_DOSEN" ? (
-                    <div className="field">
-                      <label htmlFor="lamar-nim">NIM</label>
-                      <input
-                        id="lamar-nim"
-                        className="input"
-                        value={form.nim}
-                        onChange={(e) => setForm({ ...form, nim: e.target.value })}
-                        placeholder="Nomor induk mahasiswa"
-                        required
-                      />
-                    </div>
-                  ) : (
-                    <div className="field">
-                      <label htmlFor="lamar-gelar">Gelar</label>
-                      <input
-                        id="lamar-gelar"
-                        className="input"
-                        value={form.gelar}
-                        onChange={(e) => setForm({ ...form, gelar: e.target.value })}
-                        placeholder="Contoh: S.Kom., M.Kom."
-                        required
-                      />
-                    </div>
-                  )}
-                  <div className="field">
-                    <label htmlFor="lamar-wa">No. WhatsApp</label>
-                    <input
-                      id="lamar-wa"
-                      className="input"
-                      type="tel"
-                      value={form.noWhatsapp}
-                      onChange={(e) => setForm({ ...form, noWhatsapp: e.target.value })}
-                      placeholder="08xxxxxxxxxx"
-                      required
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="lamar-mk">Mata kuliah praktikum</label>
-                    <input
-                      id="lamar-mk"
-                      className="input"
-                      value={form.mataKuliahDilamar}
-                      readOnly
-                      placeholder="Mengikuti lowongan yang dipilih"
-                      required
-                    />
-                    <span className="field-hint">Mengikuti lowongan yang dipilih.</span>
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  {uploadField("suratLamaranUrl", "lamar-surat", "Surat lamaran")}
-                  {uploadField("cvUrl", "lamar-cv", "CV")}
-                  {uploadField("transkripUrl", "lamar-transkrip", "Transkrip nilai")}
-                </div>
-
-                <label className="check-row" htmlFor="lamar-pernyataan">
-                  <input
-                    id="lamar-pernyataan"
-                    type="checkbox"
-                    checked={form.pernyataan}
-                    onChange={(e) => setForm({ ...form, pernyataan: e.target.checked })}
-                    required
-                  />
-                  <span>
-                    Saya menyatakan bahwa data yang dimasukkan benar dan siap menjalankan tugas sesuai
-                    arahan dosen pengampu.
+                  <span className={`badge ${lab.status === "AKTIF" ? "badge-success" : "badge-muted"}`}>
+                    {lab.status === "AKTIF" ? "Aktif" : lab.status}
                   </span>
-                </label>
-
-                <div>
-                  <button
-                    className="btn"
-                    type="submit"
-                    disabled={submitting || !!uploading || !form.periodId}
-                  >
-                    <Icon name="recruitment" size={15} />
-                    {submitting ? "Mengirim lamaran…" : "Kirim lamaran"}
-                  </button>
                 </div>
-              </form>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <div className="stat-label">Lokasi</div>
+                    <div style={{ fontSize: 15 }}>Ruang {labRoom(lab.nama, lab.lokasi)}</div>
+                  </div>
+                  <div>
+                    <div className="stat-label">Kapasitas</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 15 }}>
+                      {lab.kapasitas} orang
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
         )}
       </section>
 
-      <footer className="landing-foot">
-        <div className="landing-foot-inner">
-          <span>© 2026 Laboratorium Ilmu Komputer · Institut Teknologi Garut</span>
-          <span>LabOps · sistem operasional laboratorium</span>
+      <section id="menu" className="feature-band" style={{ paddingTop: 0 }}>
+        <div className="section-head">
+          <div>
+            <h2 className="section-title">Menu informasi</h2>
+            <p className="section-note">
+              Informasi operasional laboratorium tersedia di halaman terpisah.
+            </p>
+          </div>
         </div>
-      </footer>
-    </div>
+        <div className="menu-grid">
+          {MENU.map((item) => (
+            <Link key={item.href} href={item.href} className="menu-card">
+              <span className="info-icon">
+                <Icon name={item.icon} size={18} />
+              </span>
+              <span>{item.label}</span>
+              <Icon name="chevron" size={16} />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="feature-band" style={{ paddingTop: 0 }}>
+        <div className="contact-card">
+          <span className="info-icon">
+            <Icon name="prodi" size={20} />
+          </span>
+          <div>
+            <h3>Kontak &amp; lokasi</h3>
+            <p>
+              Gedung Ilmu Komputer, Institut Teknologi Garut
+              <br />
+              Jl. Mayor Syamsu No. 1, Jayaraga, Tarogong Kidul, Garut, Jawa Barat 44151
+            </p>
+            <p className="info-hint">
+              Untuk layanan laboratorium, gunakan menu informasi di atas.
+            </p>
+          </div>
+        </div>
+      </section>
+    </PublicShell>
   );
 }
