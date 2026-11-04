@@ -61,6 +61,18 @@ export default function ValidateAttendancePage() {
     loadMe();
   }, [loadMe]);
 
+  // Jika datang dari scan QR (parameter ?token=), isi input otomatis
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (token && !qrToken) {
+      setQrToken(token);
+      // Bersihkan parameter di URL agar tidak terlihat di address bar
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [qrToken]);
+
   async function scan() {
     setMsg(null);
     setResult(null);
@@ -127,13 +139,13 @@ export default function ValidateAttendancePage() {
                 <input
                   id="validate-qr"
                   className="input"
-                  placeholder="mis. 8fK2pQ9xLmA…"
+                  placeholder="mis. sJMhspSzt-X7…"
                   value={qrToken}
                   onChange={(e) => setQrToken(e.target.value)}
                   style={{ fontFamily: "var(--font-mono)" }}
                   required
                 />
-                <span className="field-hint">Token berasal dari QR code yang di-generate instruktur.</span>
+                <span className="field-hint">Isi token yang muncul saat memindai gambar QR instruktur dengan kamera ponsel.</span>
               </div>
               <button className="btn" type="submit" disabled={loading || !qrToken.trim()}>
                 {loading ? "Memindai…" : <><Icon name="qr" size={15} /> Verifikasi QR</>}
@@ -144,9 +156,8 @@ export default function ValidateAttendancePage() {
           <div className="card">
             <h2 className="card-title">Petunjuk</h2>
             <ol className="guide-list">
-              <li>Instruktur menampilkan QR code pada layar lab setelah memilih mata kuliah dan kelas.</li>
-              <li>KM kelas men-scan QR code atau menyalin token yang muncul di bawah QR.</li>
-              <li>Masukkan token di sini, lalu klik <strong>Verifikasi QR</strong>.</li>
+              <li>Instruktur menampilkan gambar QR code pada layar lab setelah memilih mata kuliah dan kelas.</li>
+              <li>KM kelas memindai gambar QR dengan kamera ponsel; halaman validasi akan terbuka langsung dengan token terisi.</li>
               <li>Periksa daftar anggota tim dan status kehadirannya.</li>
               <li>Klik <strong>Konfirmasi Validasi</strong> untuk menyimpan verifikasi.</li>
             </ol>

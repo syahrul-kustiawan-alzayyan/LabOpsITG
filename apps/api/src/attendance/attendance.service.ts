@@ -589,13 +589,34 @@ export class AttendanceService {
       if (!kelasByCourse.has(s.mataKuliahId)) kelasByCourse.set(s.mataKuliahId, new Set());
       kelasByCourse.get(s.mataKuliahId)!.add(s.kelas);
     }
-    return courses.map((c) => ({
-      id: c.id,
-      kode: c.kode,
-      nama: c.nama,
-      kelas: [...(kelasByCourse.get(c.id) || [])].sort(),
-      asistenCount: c.asistenIds.length,
-    }));
+    const results = await Promise.all(
+      courses.map(async (c) => {
+        const userDetails: Record<string, { nama: string; email: string; subRoles: string[] }> = {};
+        const allIds = new Set<string>([c.instrukturId, ...c.asistenIds]);
+        for (const id of allIds) {
+          if (!id) continue;
+          const u = await this.prisma.user.findUnique({
+            where: { id },
+            select: { nama: true, email: true, subRoles: true },
+          });
+          if (u) userDetails[id] = u;
+        }
+        return {
+          id: c.id,
+          kode: c.kode,
+          nama: c.nama,
+          instrukturId: c.instrukturId,
+          asistenIds: c.asistenIds,
+          kelas: [...(kelasByCourse.get(c.id) || [])].sort(),
+          asistenCount: c.asistenIds.length,
+          team: [
+            c.instrukturId ? { id: c.instrukturId, ...userDetails[c.instrukturId], peran: "INSTRUKTUR" } : null,
+            ...c.asistenIds.map((id) => ({ id, ...userDetails[id], peran: "ASISTEN_DOSEN" })),
+          ].filter(Boolean),
+        };
+      }),
+    );
+    return results;
   }
 
   async manual(sesiId: string, userId: string, status: string, reason: string, actorId: string, tanggal?: string) {

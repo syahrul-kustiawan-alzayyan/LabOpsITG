@@ -41,8 +41,15 @@ type CourseOption = {
   kode: string;
   nama: string;
   instrukturId: string | null;
+  asistenIds: string[];
   kelas: string[];
   asistenCount: number;
+  team: Array<{
+    id: string;
+    nama: string;
+    email: string;
+    peran: "INSTRUKTUR" | "ASISTEN_DOSEN";
+  }>;
 };
 
 type Member = {
@@ -97,41 +104,32 @@ export function InstrukturSessionCreate() {
   const isInstruktur = !!me?.subRoles?.includes("INSTRUKTUR");
 
   useEffect(() => {
-    if (!selectedCourse || !isInstruktur) return;
-    const ids = new Set<string>([me?.id]);
-    if (selectedCourse.instrukturId) ids.add(selectedCourse.instrukturId);
-    // asistenIds tidak ada di CourseOption, akan diisi dari sesi saat dipilih kelas
-    // Untuk sementara gunakan data course yang ada
+    if (!selectedCourse || !selectedKelas || !isInstruktur) return;
     fetchMembers();
-  }, [selectedCourse, isInstruktur, me]);
+  }, [selectedCourse, selectedKelas, isInstruktur, me]);
 
   async function fetchMembers() {
-    if (!selectedCourse || !selectedKelas) {
+    if (!selectedCourse || !selectedKelas || !me) {
       setMembers([]);
       return;
     }
     try {
-      // Cari jadwal untuk course + kelas hari ini untuk mendapatkan asistenIds
-      const day = date || today;
-      const hari = new Date(`${day}T00:00:00Z`).getUTCDay();
-      const sesis = await api<any[]>(
-        `/schedules?mataKuliahId=${selectedCourse.id}&kelas=${encodeURIComponent(selectedKelas)}&hari=${hari}`,
-      );
-      // Fallback: gunakan course data saja
-      const asistenIds: string[] = [];
-      const instrukturId = selectedCourse.instrukturId || (me?.subRoles?.includes("INSTRUKTUR") ? me.id : "");
-
-      // Ambil detail user dari course (asistenIds tidak tersedia di CourseOption,
-      // jadi kita asumsikan instruktur sendiri + daftar asisten akan diisi dari sesi)
-      const memberList: Member[] = [];
-      if (instrukturId) {
-        memberList.push({ id: instrukturId, nama: me?.nama || "Instruktur", email: me?.email || "", peran: "INSTRUKTUR" });
+      // Team sudah lengkap dari endpoint instruktur/courses (instruktur + asdos)
+      const teamMap = new Map<string, Member>();
+      for (const t of selectedCourse.team) {
+        teamMap.set(t.id, { id: t.id, nama: t.nama, email: t.email, peran: t.peran });
       }
-      // Asisten akan diisi saat kita dapat data jadwal lengkap
-      // Untuk sekarang, tampilkan instruktur dan biarkan asisten diisi dari API detail
+      // Pastikan instruktur yang login selalu ada dalam daftar
+      if (me.id && !teamMap.has(me.id)) {
+        teamMap.set(me.id, { id: me.id, nama: me.nama, email: me.email, peran: "INSTRUKTUR" });
+      }
+
+      const memberList: Member[] = [...teamMap.values()];
+      // Urutkan: instruktur dulu, lalu asisten
+      memberList.sort((a, b) => (a.peran === b.peran ? 0 : a.peran === "INSTRUKTUR" ? -1 : 1));
       setMembers(memberList);
     } catch {
-      /* abaikan, akan dimuat ulang saat kelas dipilih */
+      setMembers([]);
     }
   }
 
@@ -144,12 +142,12 @@ export function InstrukturSessionCreate() {
     setQrResult(null);
   }
 
-  function handleKelasChange(kelas: string) {
+  async function handleKelasChange(kelas: string) {
     setSelectedKelas(kelas);
     setDrafts({});
     setQrDataUrl(null);
     setQrResult(null);
-    fetchMembers();
+    await fetchMembers();
   }
 
   function setMemberStatus(userId: string, status: string) {
@@ -175,13 +173,12 @@ export function InstrukturSessionCreate() {
         },
       });
       setQrResult(data);
-      // Generate QR code data URL
-      const payload = JSON.stringify({
-        token: data.qrToken,
-        sesi: data.sesi,
-        exp: data.qrExpiresAt,
-      });
-      const dataUrl = await QRCode.toDataURL(payload, {
+      // QR code mengarah ke halaman validasi dengan token sebagai parameter,
+      // sehingga KM kelas hanya perlu memindai gambar QR dengan kamera ponsel
+      // dan halaman validasi akan terbuka langsung dengan token terisi.
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      const validateUrl = `${baseUrl}/attendance/validate?token=${encodeURIComponent(data.qrToken)}`;
+      const dataUrl = await QRCode.toDataURL(validateUrl, {
         width: 300,
         margin: 2,
         color: { dark: "#0f4c4c", light: "#ffffff" },
@@ -368,7 +365,7 @@ export function InstrukturSessionCreate() {
                   <div className="qr-hint" style={{ marginTop: 10, fontSize: 12, color: "var(--ink-soft)" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <Icon name="info" size={14} />
-                      KM kelas memindai QR ini dari layar lab untuk memvalidasi kehadiran.
+                      KM kelas memindai gambar QR ini dengan kamera ponsel untuk membuka halaman validasi.
                     </span>
                   </div>
                 </div>
