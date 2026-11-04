@@ -21,10 +21,8 @@ type GridBooking = {
   keperluan: string;
 };
 
-const LABEL_WIDTH = 132;
 const TRACK_HEIGHT = 92;
 const BLOCK_GAP = 6;
-const MIN_PX_PER_HOUR = 76;
 const DEFAULT_START = 7;
 const DEFAULT_END = 18;
 const MIN_SPAN = 8;
@@ -125,7 +123,6 @@ export function ScheduleGrid({
   const range = hourRange ?? hourRangeFor([...schedules, ...bookings]);
   const span = range.end - range.start;
   const hours = Array.from({ length: span }, (_, i) => range.start + i);
-  const minWidth = LABEL_WIDTH + span * MIN_PX_PER_HOUR;
 
   const rows = labs.filter(
     (lab) =>
@@ -147,13 +144,8 @@ export function ScheduleGrid({
   return (
     <div className="timetable">
       <div className="tt-scroll">
-        <div style={{ minWidth }}>
-          <div
-            className="tt-grid"
-            style={{
-              ["--hours" as any]: hours.length,
-            }}
-          >
+        <div className="tt-canvas" style={{ ["--hours" as any]: hours.length }}>
+          <div className="tt-grid">
             <div className="tt-head tt-head-label">Jam</div>
             {hours.map((h) => (
               <div className="tt-head" key={h}>
