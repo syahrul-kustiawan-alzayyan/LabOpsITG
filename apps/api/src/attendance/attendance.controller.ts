@@ -53,7 +53,7 @@ export class AttendanceController {
   @Post("instruktur/session")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
   createInstrukturSession(
-    @Body() body: { mataKuliahId: string; kelas: string; tanggal?: string; pertemuanKe?: number; records: { userId: string; status: string; reason?: string }[] },
+    @Body() body: { mataKuliahId: string; kelas: string; tanggal?: string; pertemuanKe?: number; materi?: string; records: { userId: string; status: string; reason?: string }[] },
     @Req() req: Request,
   ) {
     return this.svc.createInstrukturSession(body, (req as any).user);

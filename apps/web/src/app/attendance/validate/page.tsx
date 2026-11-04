@@ -195,6 +195,12 @@ export default function ValidateAttendancePage() {
                 <span className="validate-label">Pertemuan ke-</span>
                 <span className="validate-value">{result.pertemuanKe ?? "—"}</span>
               </div>
+              {result.materi && (
+                <div className="validate-field" style={{ gridColumn: "1 / -1" }}>
+                  <span className="validate-label">Materi ajar</span>
+                  <span className="validate-value">{result.materi}</span>
+                </div>
+              )}
               <div className="validate-field">
                 <span className="validate-label">Jam</span>
                 <span className="validate-value">{result.sesi.jamMulai} – {result.sesi.jamSelesai}</span>
@@ -234,6 +240,7 @@ export default function ValidateAttendancePage() {
                     <th>Nama</th>
                     <th>Peran</th>
                     <th>Pertemuan</th>
+                    <th>Materi</th>
                     <th>Status</th>
                     <th>Terverifikasi</th>
                   </tr>
@@ -241,7 +248,7 @@ export default function ValidateAttendancePage() {
                 <tbody>
                   {members.length === 0 ? (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={6}>
                         <div className="empty" style={{ padding: 20 }}>
                           <p className="empty-text">Belum ada data kehadiran anggota tim.</p>
                         </div>
@@ -263,6 +270,11 @@ export default function ValidateAttendancePage() {
                         </td>
                         <td>
                           <span className="badge badge-plain">{m.pertemuanKe ?? "—"}</span>
+                        </td>
+                        <td>
+                          <span className="badge badge-muted" style={{ fontSize: 11.5, maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {m.materi ?? "—"}
+                          </span>
                         </td>
                         <td>
                           <span className={`badge ${STATUS_BADGE[m.status] || "badge-muted"}`}>

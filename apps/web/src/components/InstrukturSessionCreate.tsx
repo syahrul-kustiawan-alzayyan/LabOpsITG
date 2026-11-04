@@ -66,6 +66,7 @@ export function InstrukturSessionCreate() {
   const [selectedKelas, setSelectedKelas] = useState("");
   const [date, setDate] = useState("");
   const [pertemuanKe, setPertemuanKe] = useState(1);
+  const [materi, setMateri] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -140,6 +141,7 @@ export function InstrukturSessionCreate() {
     setMembers([]);
     setDrafts({});
     setPertemuanKe(1);
+    setMateri("");
     setQrDataUrl(null);
     setQrResult(null);
   }
@@ -148,6 +150,7 @@ export function InstrukturSessionCreate() {
     setSelectedKelas(kelas);
     setDrafts({});
     setPertemuanKe(1);
+    setMateri("");
     setQrDataUrl(null);
     setQrResult(null);
     await fetchMembers();
@@ -173,6 +176,7 @@ export function InstrukturSessionCreate() {
           kelas: selectedKelas,
           tanggal: date || today,
           pertemuanKe: pertemuanKe,
+          materi: materi,
           records,
         },
       });
@@ -303,6 +307,21 @@ export function InstrukturSessionCreate() {
                 </div>
               )}
 
+              {selectedCourse && selectedKelas && (
+                <div className="field" style={{ marginBottom: 12 }}>
+                  <label htmlFor="instruktur-materi">Materi Ajar</label>
+                  <textarea
+                    id="instruktur-materi"
+                    className="input"
+                    rows={3}
+                    value={materi}
+                    onChange={(e) => setMateri(e.target.value)}
+                    placeholder="Deskripsi materi atau tautan ke materi ajar (mis. materi Minggu 3: Array dan Looping)"
+                  />
+                  <span className="field-hint">Materi yang dibahas pada pertemuan ini akan ditampilkan saat KM kelas memvalidasi QR.</span>
+                </div>
+              )}
+
               {selectedCourse && selectedKelas && members.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
                   <h3 style={{ margin: "0 0 8px 0", fontSize: 14, fontWeight: 600, color: "var(--ink-soft)" }}>
@@ -366,6 +385,11 @@ export function InstrukturSessionCreate() {
                     <p style={{ fontSize: 12, color: "var(--ink-soft)" }}>
                       {qrResult.marked} anggota tim telah ditandai
                     </p>
+                    {qrResult.materi && (
+                      <p style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                        <strong>Materi:</strong> {qrResult.materi}
+                      </p>
+                    )}
                   </div>
                   <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
                     <button className="btn btn-secondary btn-sm" onClick={downloadQr} disabled={!qrDataUrl}>

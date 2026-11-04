@@ -296,6 +296,8 @@ model Attendance {
   validationSource String?
   /// Pertemuan ke-berapa (mis. 1, 2, 3...) pada mata kuliah ini
   pertemuanKe      Int?
+  /// Materi ajar yang dibahas pada pertemuan ini (deskripsi atau tautan)
+  materi           String?
   status           AttendanceStatus
   qrTokenScanned   String
   correctedBy      String?

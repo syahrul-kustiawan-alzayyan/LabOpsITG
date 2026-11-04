@@ -330,6 +330,7 @@ export class AttendanceService {
       kelas: string;
       tanggal?: string;
       pertemuanKe?: number;
+      materi?: string;
       records: { userId: string; status: string; reason?: string }[];
     },
     actor: SessionActor,
@@ -394,6 +395,7 @@ export class AttendanceService {
           data: {
             status: record.status as any,
             pertemuanKe: body.pertemuanKe ?? null,
+            materi: body.materi ?? null,
             correctedBy: actor.sub,
             correctionReason: reason,
             oldValue: existing.status,
@@ -416,6 +418,7 @@ export class AttendanceService {
             labId: sesi.labId,
             tanggal: day,
             pertemuanKe: body.pertemuanKe ?? null,
+            materi: body.materi ?? null,
             scannedAt: new Date(),
             status: record.status as any,
             qrTokenScanned: "INSTRUKTUR_SESSION",
@@ -441,6 +444,7 @@ export class AttendanceService {
       ok: true,
       date: day.toISOString().slice(0, 10),
       pertemuanKe: body.pertemuanKe,
+      materi: body.materi,
       sesi: {
         id: sesi.id,
         mataKuliah: sesi.course.nama,
@@ -496,6 +500,7 @@ export class AttendanceService {
       peran: a.user.subRoles.includes("INSTRUKTUR") ? "INSTRUKTUR" : a.user.subRoles.includes("ASISTEN_DOSEN") ? "ASISTEN_DOSEN" : "LAINNYA",
       status: a.status,
       pertemuanKe: a.pertemuanKe,
+      materi: a.materi,
       validatedBy: a.validatedBy,
       validatedAt: a.validatedAt,
     }));
