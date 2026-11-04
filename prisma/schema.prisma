@@ -290,6 +290,10 @@ model Attendance {
   /// Tanggal pertemuan (UTC tengah malam untuk tanggal kalender Jakarta)
   tanggal          DateTime         @default(now())
   scannedAt        DateTime         @default(now())
+  /// Petugas yang memvalidasi (mis. KM kelas via scan QR)
+  validatedBy      String?
+  validatedAt      DateTime?
+  validationSource String?
   status           AttendanceStatus
   qrTokenScanned   String
   correctedBy      String?

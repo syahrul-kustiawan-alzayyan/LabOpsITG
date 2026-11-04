@@ -320,6 +320,284 @@ export class AttendanceService {
     return { ok: true, date: day.toISOString().slice(0, 10), marked: saved.length, records: saved };
   }
 
+  /**
+   * Instruktur membuat sesi absensi: memilih mata kuliah + kelas, menandai siapa hadir,
+   * lalu menghasilkan token QR yang akan dipindai KM kelas untuk validasi.
+   */
+  async createInstrukturSession(
+    body: {
+      mataKuliahId: string;
+      kelas: string;
+      tanggal?: string;
+      records: { userId: string; status: string; reason?: string }[];
+    },
+    actor: SessionActor,
+  ) {
+    if (!body?.mataKuliahId || !body?.kelas) throw new BadRequestException("Mata kuliah dan kelas wajib diisi");
+    if (!Array.isArray(body.records) || body.records.length === 0) throw new BadRequestException("Tidak ada anggota tim yang dipilih");
+
+    const day = body.tanggal ? startOfJakartaDay(body.tanggal) : todayJakarta();
+    if (Number.isNaN(day.getTime())) throw new BadRequestException("Tanggal absensi tidak valid");
+    const today = todayJakarta();
+    if (day.getTime() > today.getTime()) throw new BadRequestException("Sesi belum dapat dibuat sebelum hari pelaksanaan");
+
+    const hari = dayOfWeekJakarta(day);
+
+    // Cari jadwal yang cocok: mata kuliah + kelas + hari + periode aktif
+    const sesi = await this.prisma.schedule.findFirst({
+      where: {
+        deletedAt: null,
+        status: "AKTIF",
+        mataKuliahId: body.mataKuliahId,
+        kelas: body.kelas,
+        hari,
+        tanggalMulai: { lte: day },
+        tanggalSelesai: { gte: day },
+      },
+      include: {
+        lab: { select: { id: true, kode: true, nama: true } },
+        course: {
+          select: { id: true, kode: true, nama: true, instrukturId: true, asistenIds: true },
+        },
+      },
+    });
+    if (!sesi) throw new NotFoundException("Jadwal praktikum tidak ditemukan untuk mata kuliah dan kelas ini pada hari ini");
+    if (!sesi.course) throw new BadRequestException("Sesi belum tertaut dengan mata kuliah");
+
+    // Hanya instruktur pengampu mata kuliah (atau admin) yang boleh membuat sesi
+    if (actor.role !== "ADMIN_SYSTEM" && sesi.course.instrukturId !== actor.sub) {
+      throw new ForbiddenException("Hanya instruktur pengampu mata kuliah ini yang dapat membuat sesi absensi");
+    }
+
+    // Validasi anggota yang diizinkan: instruktur + asdos
+    const allowed = new Set<string>();
+    if (sesi.course.instrukturId) allowed.add(sesi.course.instrukturId);
+    for (const id of [...sesi.course.asistenIds, ...sesi.asistenIds]) allowed.add(id);
+
+    // Tandai kehadiran setiap anggota
+    const saved: any[] = [];
+    for (const record of body.records) {
+      if (!record?.userId || !allowed.has(record.userId)) {
+        throw new BadRequestException("Anggota tim tidak terdaftar pada mata kuliah ini");
+      }
+      if (!ATTENDANCE_STATUSES.includes(record.status as TeamStatus)) {
+        throw new BadRequestException("Status absensi tidak valid");
+      }
+      const reason = record.reason?.trim() || "Absensi tim pengajar oleh instruktur";
+      const existing = await this.prisma.attendance.findUnique({
+        where: { sesiId_userId_tanggal: { sesiId: sesi.id, userId: record.userId, tanggal: day } },
+      });
+      if (existing) {
+        const updated = await this.prisma.attendance.update({
+          where: { id: existing.id },
+          data: {
+            status: record.status as any,
+            correctedBy: actor.sub,
+            correctionReason: reason,
+            oldValue: existing.status,
+          },
+        });
+        await this.audit.log({
+          actorId: actor.sub,
+          action: "INSTRUKTUR_SESSION_CORRECTION",
+          objectType: "Attendance",
+          objectId: existing.id,
+          oldValue: { status: existing.status },
+          newValue: { status: record.status, sesiId: sesi.id, tanggal: day },
+        });
+        saved.push(updated);
+      } else {
+        const created = await this.prisma.attendance.create({
+          data: {
+            sesiId: sesi.id,
+            userId: record.userId,
+            labId: sesi.labId,
+            tanggal: day,
+            scannedAt: new Date(),
+            status: record.status as any,
+            qrTokenScanned: "INSTRUKTUR_SESSION",
+            correctedBy: actor.sub,
+            correctionReason: reason,
+          },
+        });
+        await this.audit.log({
+          actorId: actor.sub,
+          action: "INSTRUKTUR_SESSION_CREATE",
+          objectType: "Attendance",
+          objectId: created.id,
+          newValue: { userId: record.userId, status: record.status, sesiId: sesi.id, tanggal: day },
+        });
+        saved.push(created);
+      }
+    }
+
+    // Buat token QR untuk sesi ini (berlaku 15 menit)
+    const tokenResult = await this.createSessionToken(sesi.id, actor.sub);
+
+    return {
+      ok: true,
+      date: day.toISOString().slice(0, 10),
+      sesi: {
+        id: sesi.id,
+        mataKuliah: sesi.course.nama,
+        kode: sesi.course.kode,
+        kelas: sesi.kelas,
+        semester: sesi.semester,
+        jamMulai: sesi.jamMulai,
+        jamSelesai: sesi.jamSelesai,
+        lab: sesi.lab,
+      },
+      qrToken: tokenResult.token,
+      qrExpiresAt: tokenResult.expiresAt,
+      marked: saved.length,
+      records: saved.map((r) => ({ userId: r.userId, status: r.status })),
+    };
+  }
+
+  /**
+   * Validasi token QR yang dipindai KM kelas. Mengembalikan data sesi dan
+   * daftar anggota yang telah ditandai oleh instruktur.
+   */
+  async validateScan(qrToken: string, actorId: string) {
+    if (!qrToken || !qrToken.trim()) throw new BadRequestException("QR code tidak valid");
+    const now = new Date();
+
+    const token = await this.prisma.sessionQrToken.findUnique({
+      where: { token: qrToken.trim() },
+      include: {
+        schedule: {
+          include: {
+            lab: { select: { id: true, kode: true, nama: true } },
+            course: { select: { id: true, kode: true, nama: true, instrukturId: true, asistenIds: true } },
+          },
+        },
+      },
+    });
+    if (!token || token.expiresAt <= now) throw new BadRequestException("QR code tidak valid atau sudah kedaluwarsa");
+    const s = token.schedule;
+    if (s.deletedAt || s.status !== "AKTIF") throw new BadRequestException("Sesi praktikum tidak aktif");
+
+    const today = todayJakarta();
+    const day = startOfJakartaDay(token.createdAt);
+    const atts = await this.prisma.attendance.findMany({
+      where: { sesiId: s.id, tanggal: day, deletedAt: null },
+      include: { user: { select: { id: true, nama: true, email: true, subRoles: true } } },
+      orderBy: { user: { nama: "asc" } },
+    });
+
+    const members = atts.map((a) => ({
+      id: a.user.id,
+      nama: a.user.nama,
+      email: a.user.email,
+      peran: a.user.subRoles.includes("INSTRUKTUR") ? "INSTRUKTUR" : a.user.subRoles.includes("ASISTEN_DOSEN") ? "ASISTEN_DOSEN" : "LAINNYA",
+      status: a.status,
+      validatedBy: a.validatedBy,
+      validatedAt: a.validatedAt,
+    }));
+
+    // Tandai sudah dipindai (audit only, tidak mengubah status kehadiran)
+    await this.audit.log({
+      actorId,
+      action: "QR_VALIDATE_SCAN",
+      objectType: "SessionQrToken",
+      objectId: token.id,
+      newValue: { sesiId: s.id, scannedBy: actorId, scannedAt: now },
+    });
+
+    return {
+      valid: true,
+      tokenId: token.id,
+      expiresAt: token.expiresAt,
+      sesi: {
+        id: s.id,
+        mataKuliah: s.course?.nama ?? s.mataKuliah,
+        kode: s.course?.kode ?? null,
+        kelas: s.kelas,
+        semester: s.semester,
+        jamMulai: s.jamMulai,
+        jamSelesai: s.jamSelesai,
+        lab: s.lab,
+      },
+      scannedAt: now,
+      scannedBy: actorId,
+      members,
+      totalHadir: members.filter((m) => m.status === "HADIR").length,
+      totalMembers: members.length,
+    };
+  }
+
+  /**
+   * KM kelas mengonfirmasi validasi kehadiran setelah memindai QR.
+   * Menandai attendance records sebagai divalidasi oleh petugas scan.
+   */
+  async confirmValidation(qrToken: string, actorId: string) {
+    if (!qrToken || !qrToken.trim()) throw new BadRequestException("QR code tidak valid");
+    const now = new Date();
+
+    const token = await this.prisma.sessionQrToken.findUnique({
+      where: { token: qrToken.trim() },
+      include: { schedule: true },
+    });
+    if (!token || token.expiresAt <= now) throw new BadRequestException("QR code tidak valid atau sudah kedaluwarsa");
+    const s = token.schedule;
+    if (s.deletedAt || s.status !== "AKTIF") throw new BadRequestException("Sesi praktikum tidak aktif");
+
+    const today = todayJakarta();
+    const day = startOfJakartaDay(token.createdAt);
+
+    const atts = await this.prisma.attendance.findMany({
+      where: { sesiId: s.id, tanggal: day, deletedAt: null },
+    });
+
+    for (const a of atts) {
+      await this.prisma.attendance.update({
+        where: { id: a.id },
+        data: { validatedBy: actorId, validatedAt: now, validationSource: "QR_KM" },
+      });
+      await this.audit.log({
+        actorId,
+        action: "QR_VALIDATE_CONFIRM",
+        objectType: "Attendance",
+        objectId: a.id,
+        newValue: { validatedBy: actorId, validatedAt: now, validationSource: "QR_KM" },
+      });
+    }
+
+    return { ok: true, sesiId: s.id, validated: atts.length, date: day.toISOString().slice(0, 10) };
+  }
+
+  /** Daftar mata kuliah yang diampu instruktur (untuk dropdown pembuatan sesi). */
+  async instrukturCourses(actorId: string) {
+    const courses = await this.prisma.mataKuliah.findMany({
+      where: { instrukturId: actorId, deletedAt: null, status: "AKTIF" },
+      select: { id: true, kode: true, nama: true, asistenIds: true, instrukturId: true },
+      orderBy: { kode: "asc" },
+    });
+    // Ambil daftar kelas unik dari jadwal aktif hari ini dan mendatang
+    const today = todayJakarta();
+    const schedules = await this.prisma.schedule.findMany({
+      where: {
+        mataKuliahId: { in: courses.map((c) => c.id) },
+        deletedAt: null,
+        status: "AKTIF",
+        tanggalSelesai: { gte: today },
+      },
+      select: { mataKuliahId: true, kelas: true },
+    });
+    const kelasByCourse = new Map<string, Set<string>>();
+    for (const s of schedules) {
+      if (!kelasByCourse.has(s.mataKuliahId)) kelasByCourse.set(s.mataKuliahId, new Set());
+      kelasByCourse.get(s.mataKuliahId)!.add(s.kelas);
+    }
+    return courses.map((c) => ({
+      id: c.id,
+      kode: c.kode,
+      nama: c.nama,
+      kelas: [...(kelasByCourse.get(c.id) || [])].sort(),
+      asistenCount: c.asistenIds.length,
+    }));
+  }
+
   async manual(sesiId: string, userId: string, status: string, reason: string, actorId: string, tanggal?: string) {
     if (!reason || !reason.trim()) throw new BadRequestException("Alasan wajib diisi");
     if (!ATTENDANCE_STATUSES.includes(status as TeamStatus)) throw new BadRequestException("Status absensi tidak valid");

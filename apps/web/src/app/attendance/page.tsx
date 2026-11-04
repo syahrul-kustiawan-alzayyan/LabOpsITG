@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Icon } from "@/components/Icon";
+import { InstrukturSessionCreate } from "@/components/InstrukturSessionCreate";
 import { TeamAttendance } from "@/components/TeamAttendance";
+import Link from "next/link";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const STATUS_BADGE: Record<string, string> = {
@@ -129,7 +131,13 @@ export default function AttendancePage() {
 
       {msg && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 
-      {isInstruktur && <TeamAttendance onSaved={load} />}
+      {isInstruktur && <InstrukturSessionCreate />}
+
+      <div className="validate-link">
+        <Link href="/attendance/validate" className="btn btn-secondary">
+          <Icon name="qr" size={14} /> Validasi QR (KM kelas)
+        </Link>
+      </div>
 
       {!isInstruktur && (
         <>

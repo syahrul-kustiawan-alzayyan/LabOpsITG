@@ -50,6 +50,33 @@ export class AttendanceController {
     return this.svc.markTeam(body.sesiId, body.records, (req as any).user, body.date);
   }
 
+  @Post("instruktur/session")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  createInstrukturSession(
+    @Body() body: { mataKuliahId: string; kelas: string; tanggal?: string; records: { userId: string; status: string; reason?: string }[] },
+    @Req() req: Request,
+  ) {
+    return this.svc.createInstrukturSession(body, (req as any).user);
+  }
+
+  @Post("validate")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  validateScan(@Body() body: { qrToken: string }, @Req() req: Request) {
+    return this.svc.validateScan(body.qrToken, (req as any).user.sub);
+  }
+
+  @Post("validate/confirm")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  confirmValidation(@Body() body: { qrToken: string }, @Req() req: Request) {
+    return this.svc.confirmValidation(body.qrToken, (req as any).user.sub);
+  }
+
+  @Get("instruktur/courses")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  instrukturCourses(@Req() req: Request) {
+    return this.svc.instrukturCourses((req as any).user.sub);
+  }
+
   @Get("recap/:sesiId")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
   recap(@Param("sesiId") sesiId: string) { return this.svc.recap(sesiId); }
