@@ -81,7 +81,7 @@ export class AttendanceService {
 
     const today = todayJakarta();
     const existing = await this.prisma.attendance.findUnique({
-      where: { sesiId_userId_tanggal: { sesiId: active.id, userId, tanggal: today } },
+      where: { sesiId_userId_tanggal_pertemuanKe: { sesiId: active.id, userId, tanggal: today, pertemuanKe: null } },
     });
     if (existing) throw new BadRequestException("Anda sudah melakukan absensi untuk sesi ini");
 
@@ -271,7 +271,7 @@ export class AttendanceService {
       }
       const reason = record.reason?.trim() || "Absensi tim pengajar oleh instruktur";
       const existing = await this.prisma.attendance.findUnique({
-        where: { sesiId_userId_tanggal: { sesiId, userId: record.userId, tanggal: day } },
+        where: { sesiId_userId_tanggal_pertemuanKe: { sesiId, userId: record.userId, tanggal: day, pertemuanKe: null } },
       });
       if (existing) {
         const updated = await this.prisma.attendance.update({
@@ -329,6 +329,7 @@ export class AttendanceService {
       mataKuliahId: string;
       kelas: string;
       tanggal?: string;
+      pertemuanKe?: number;
       records: { userId: string; status: string; reason?: string }[];
     },
     actor: SessionActor,
@@ -385,13 +386,14 @@ export class AttendanceService {
       }
       const reason = record.reason?.trim() || "Absensi tim pengajar oleh instruktur";
       const existing = await this.prisma.attendance.findUnique({
-        where: { sesiId_userId_tanggal: { sesiId: sesi.id, userId: record.userId, tanggal: day } },
+        where: { sesiId_userId_tanggal_pertemuanKe: { sesiId: sesi.id, userId: record.userId, tanggal: day, pertemuanKe: body.pertemuanKe ?? null } },
       });
       if (existing) {
         const updated = await this.prisma.attendance.update({
           where: { id: existing.id },
           data: {
             status: record.status as any,
+            pertemuanKe: body.pertemuanKe ?? null,
             correctedBy: actor.sub,
             correctionReason: reason,
             oldValue: existing.status,
@@ -403,7 +405,7 @@ export class AttendanceService {
           objectType: "Attendance",
           objectId: existing.id,
           oldValue: { status: existing.status },
-          newValue: { status: record.status, sesiId: sesi.id, tanggal: day },
+          newValue: { status: record.status, sesiId: sesi.id, tanggal: day, pertemuanKe: body.pertemuanKe },
         });
         saved.push(updated);
       } else {
@@ -413,6 +415,7 @@ export class AttendanceService {
             userId: record.userId,
             labId: sesi.labId,
             tanggal: day,
+            pertemuanKe: body.pertemuanKe ?? null,
             scannedAt: new Date(),
             status: record.status as any,
             qrTokenScanned: "INSTRUKTUR_SESSION",
@@ -425,7 +428,7 @@ export class AttendanceService {
           action: "INSTRUKTUR_SESSION_CREATE",
           objectType: "Attendance",
           objectId: created.id,
-          newValue: { userId: record.userId, status: record.status, sesiId: sesi.id, tanggal: day },
+          newValue: { userId: record.userId, status: record.status, sesiId: sesi.id, tanggal: day, pertemuanKe: body.pertemuanKe },
         });
         saved.push(created);
       }
@@ -437,6 +440,7 @@ export class AttendanceService {
     return {
       ok: true,
       date: day.toISOString().slice(0, 10),
+      pertemuanKe: body.pertemuanKe,
       sesi: {
         id: sesi.id,
         mataKuliah: sesi.course.nama,
@@ -491,6 +495,7 @@ export class AttendanceService {
       email: a.user.email,
       peran: a.user.subRoles.includes("INSTRUKTUR") ? "INSTRUKTUR" : a.user.subRoles.includes("ASISTEN_DOSEN") ? "ASISTEN_DOSEN" : "LAINNYA",
       status: a.status,
+      pertemuanKe: a.pertemuanKe,
       validatedBy: a.validatedBy,
       validatedAt: a.validatedAt,
     }));
@@ -627,7 +632,7 @@ export class AttendanceService {
     const day = tanggal ? startOfJakartaDay(tanggal) : todayJakarta();
     if (Number.isNaN(day.getTime())) throw new BadRequestException("Tanggal absensi tidak valid");
     const existing = await this.prisma.attendance.findUnique({
-      where: { sesiId_userId_tanggal: { sesiId, userId, tanggal: day } },
+      where: { sesiId_userId_tanggal_pertemuanKe: { sesiId, userId, tanggal: day, pertemuanKe: null } },
     });
     if (existing) {
       const updated = await this.prisma.attendance.update({

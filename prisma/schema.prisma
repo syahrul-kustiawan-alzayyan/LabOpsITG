@@ -294,6 +294,8 @@ model Attendance {
   validatedBy      String?
   validatedAt      DateTime?
   validationSource String?
+  /// Pertemuan ke-berapa (mis. 1, 2, 3...) pada mata kuliah ini
+  pertemuanKe      Int?
   status           AttendanceStatus
   qrTokenScanned   String
   correctedBy      String?
@@ -307,7 +309,7 @@ model Attendance {
   user  User     @relation(fields: [userId], references: [id])
   lab   Lab      @relation(fields: [labId], references: [id])
 
-  @@unique([sesiId, userId, tanggal])
+  @@unique([sesiId, userId, tanggal, pertemuanKe])
 }
 
 model ClassEnrollment {

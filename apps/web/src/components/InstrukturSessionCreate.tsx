@@ -65,6 +65,7 @@ export function InstrukturSessionCreate() {
   const [selectedCourse, setSelectedCourse] = useState<CourseOption | null>(null);
   const [selectedKelas, setSelectedKelas] = useState("");
   const [date, setDate] = useState("");
+  const [pertemuanKe, setPertemuanKe] = useState(1);
   const [members, setMembers] = useState<Member[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -138,6 +139,7 @@ export function InstrukturSessionCreate() {
     setSelectedKelas("");
     setMembers([]);
     setDrafts({});
+    setPertemuanKe(1);
     setQrDataUrl(null);
     setQrResult(null);
   }
@@ -145,6 +147,7 @@ export function InstrukturSessionCreate() {
   async function handleKelasChange(kelas: string) {
     setSelectedKelas(kelas);
     setDrafts({});
+    setPertemuanKe(1);
     setQrDataUrl(null);
     setQrResult(null);
     await fetchMembers();
@@ -169,6 +172,7 @@ export function InstrukturSessionCreate() {
           mataKuliahId: selectedCourse.id,
           kelas: selectedKelas,
           tanggal: date || today,
+          pertemuanKe: pertemuanKe,
           records,
         },
       });
@@ -280,6 +284,22 @@ export function InstrukturSessionCreate() {
                     max={today}
                     onChange={(e) => setDate(e.target.value || today)}
                   />
+                </div>
+              )}
+
+              {selectedCourse && selectedKelas && (
+                <div className="field" style={{ marginBottom: 12 }}>
+                  <label htmlFor="instruktur-pertemuan-ke">Pertemuan ke-</label>
+                  <input
+                    id="instruktur-pertemuan-ke"
+                    type="number"
+                    className="input"
+                    min="1"
+                    max="50"
+                    value={pertemuanKe}
+                    onChange={(e) => setPertemuanKe(Math.max(1, parseInt(e.target.value) || 1))}
+                  />
+                  <span className="field-hint">Contoh: 1 untuk pertemuan pertama, 2 untuk pertemuan kedua, dst.</span>
                 </div>
               )}
 

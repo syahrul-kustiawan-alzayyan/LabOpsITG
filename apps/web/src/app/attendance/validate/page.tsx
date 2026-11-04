@@ -192,6 +192,10 @@ export default function ValidateAttendancePage() {
                 <span className="validate-value">{result.sesi.kelas}</span>
               </div>
               <div className="validate-field">
+                <span className="validate-label">Pertemuan ke-</span>
+                <span className="validate-value">{result.pertemuanKe ?? "—"}</span>
+              </div>
+              <div className="validate-field">
                 <span className="validate-label">Jam</span>
                 <span className="validate-value">{result.sesi.jamMulai} – {result.sesi.jamSelesai}</span>
               </div>
@@ -229,6 +233,7 @@ export default function ValidateAttendancePage() {
                   <tr>
                     <th>Nama</th>
                     <th>Peran</th>
+                    <th>Pertemuan</th>
                     <th>Status</th>
                     <th>Terverifikasi</th>
                   </tr>
@@ -255,6 +260,9 @@ export default function ValidateAttendancePage() {
                         </td>
                         <td>
                           <span className="badge badge-muted">{PERAN_LABEL[m.peran] || m.peran}</span>
+                        </td>
+                        <td>
+                          <span className="badge badge-plain">{m.pertemuanKe ?? "—"}</span>
                         </td>
                         <td>
                           <span className={`badge ${STATUS_BADGE[m.status] || "badge-muted"}`}>
