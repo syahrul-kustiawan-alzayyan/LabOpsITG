@@ -18,8 +18,8 @@ export class AttendanceController {
 
   @Post("manual")
   @Roles("ADMIN_SYSTEM", "COORDINATOR")
-  manual(@Body() body: { sesiId: string; userId: string; status: string; reason: string }, @Req() req: Request) {
-    return this.svc.manual(body.sesiId, body.userId, body.status, body.reason, (req as any).user.sub);
+  manual(@Body() body: { sesiId: string; userId: string; status: string; reason: string; tanggal?: string }, @Req() req: Request) {
+    return this.svc.manual(body.sesiId, body.userId, body.status, body.reason, (req as any).user.sub, body.tanggal);
   }
 
   @Post("request-correction")
@@ -32,7 +32,22 @@ export class AttendanceController {
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
   list(@Query() q: any, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.list(q, { sub: user.sub, role: user.role });
+    return this.svc.list(q, { sub: user.sub, role: user.role, subRoles: user.subRoles });
+  }
+
+  @Get("team")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  team(@Query("date") date: string | undefined, @Req() req: Request) {
+    return this.svc.team(date, (req as any).user);
+  }
+
+  @Post("team")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  markTeam(
+    @Body() body: { sesiId: string; date?: string; records: { userId: string; status: string; reason?: string }[] },
+    @Req() req: Request,
+  ) {
+    return this.svc.markTeam(body.sesiId, body.records, (req as any).user, body.date);
   }
 
   @Get("recap/:sesiId")

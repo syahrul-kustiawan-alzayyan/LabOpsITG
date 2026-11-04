@@ -287,6 +287,8 @@ model Attendance {
   sesiId           String
   userId           String
   labId            String
+  /// Tanggal pertemuan (UTC tengah malam untuk tanggal kalender Jakarta)
+  tanggal          DateTime         @default(now())
   scannedAt        DateTime         @default(now())
   status           AttendanceStatus
   qrTokenScanned   String
@@ -301,7 +303,7 @@ model Attendance {
   user  User     @relation(fields: [userId], references: [id])
   lab   Lab      @relation(fields: [labId], references: [id])
 
-  @@unique([sesiId, userId])
+  @@unique([sesiId, userId, tanggal])
 }
 
 model ClassEnrollment {

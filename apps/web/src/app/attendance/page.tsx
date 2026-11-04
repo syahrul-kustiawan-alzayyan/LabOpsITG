@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Icon } from "@/components/Icon";
+import { TeamAttendance } from "@/components/TeamAttendance";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const STATUS_BADGE: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true);
 
   const isCoord = me && ["ADMIN_SYSTEM", "COORDINATOR"].includes(me.role);
+  const isInstruktur = !!me?.subRoles?.includes("INSTRUKTUR");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,15 +118,21 @@ export default function AttendancePage() {
         <div>
           <h1 className="page-title">Absensi</h1>
           <p className="page-subtitle">
-            {isCoord
-              ? "Buka QR per sesi, kelola peserta, dan koreksi kehadiran dengan alasan tercatat."
-              : "Pindai token QR sesi praktikum yang sedang berlangsung."}
+            {isInstruktur
+              ? "Absen diri Anda dan asisten dosen untuk setiap sesi praktikum yang Anda ampu."
+              : isCoord
+                ? "Buka QR per sesi, kelola peserta, dan koreksi kehadiran dengan alasan tercatat."
+                : "Pindai token QR sesi praktikum yang sedang berlangsung."}
           </p>
         </div>
       </div>
 
       {msg && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 
+      {isInstruktur && <TeamAttendance onSaved={load} />}
+
+      {!isInstruktur && (
+        <>
       <div className="split-even">
         <div className="card">
           <h2 className="card-title">Scan kehadiran</h2>
@@ -288,6 +296,8 @@ export default function AttendancePage() {
           </div>
         </div>
       )}
+        </>
+      )}
 
       <div style={{ margin: "22px 0 10px", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h2 className="section-title" style={{ fontSize: 17 }}>
@@ -303,7 +313,7 @@ export default function AttendancePage() {
               <th>Pengguna</th>
               <th>Sesi</th>
               <th>Lab</th>
-              <th>Waktu scan</th>
+              <th>Waktu</th>
               <th>Status</th>
             </tr>
           </thead>

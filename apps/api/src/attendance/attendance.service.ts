@@ -3,11 +3,23 @@ import { randomBytes } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
-import { dayOfWeekJakarta, jakartaParts, parseTimeToMinutes, startOfJakartaDay } from "../common/time";
+import {
+  DAY_NAMES,
+  dayOfWeekJakarta,
+  jakartaParts,
+  parseTimeToMinutes,
+  startOfJakartaDay,
+  todayJakarta,
+} from "../common/time";
 
 const TOLERANCE_MIN = 15;
 const TOKEN_TTL_MIN = 15;
 const MAX_LIMIT = 500;
+const ATTENDANCE_STATUSES = ["HADIR", "TERLAMBAT", "IZIN", "SAKIT", "TIDAK_HADIR"] as const;
+const TEAM_MARK = "INSTRUKTUR";
+type TeamStatus = (typeof ATTENDANCE_STATUSES)[number];
+
+type SessionActor = { sub: string; role: string; subRoles?: string[] };
 
 @Injectable()
 export class AttendanceService {
@@ -67,8 +79,9 @@ export class AttendanceService {
       throw new ForbiddenException("Anda tidak terdaftar pada kelas praktikum ini");
     }
 
+    const today = todayJakarta();
     const existing = await this.prisma.attendance.findUnique({
-      where: { sesiId_userId: { sesiId: active.id, userId } },
+      where: { sesiId_userId_tanggal: { sesiId: active.id, userId, tanggal: today } },
     });
     if (existing) throw new BadRequestException("Anda sudah melakukan absensi untuk sesi ini");
 
@@ -81,6 +94,7 @@ export class AttendanceService {
         sesiId: active.id,
         userId,
         labId: active.labId,
+        tanggal: today,
         scannedAt: now,
         status: status as any,
         qrTokenScanned: qrToken.trim(),
@@ -118,12 +132,204 @@ export class AttendanceService {
     });
   }
 
-  async manual(sesiId: string, userId: string, status: string, reason: string, actorId: string) {
+  private teamMember(
+    users: Map<string, { id: string; nama: string; email: string }>,
+    attendance: Map<string, any>,
+    userId: string,
+    peran: "INSTRUKTUR" | "ASISTEN_DOSEN",
+  ) {
+    const user = users.get(userId);
+    if (!user) return null;
+    const att = attendance.get(userId) || null;
+    return {
+      id: user.id,
+      nama: user.nama,
+      email: user.email,
+      peran,
+      status: att?.status ?? null,
+      attendanceId: att?.id ?? null,
+      scannedAt: att?.scannedAt ?? null,
+      source: att?.qrTokenScanned ?? null,
+    };
+  }
+
+  /**
+   * Sesi milik instruktur pada tanggal tertentu, lengkap dengan status absensi
+   * instruktur dan asisten dosen. Dipakai halaman Absensi tim pengajar.
+   */
+  async team(dateStr: string | undefined, actor: SessionActor) {
+    const day = dateStr ? startOfJakartaDay(dateStr) : todayJakarta();
+    if (Number.isNaN(day.getTime())) throw new BadRequestException("Tanggal absensi tidak valid");
+    const today = todayJakarta();
+    const hari = dayOfWeekJakarta(day);
+    const isToday = day.getTime() === today.getTime();
+
+    const sessions = await this.prisma.schedule.findMany({
+      where: {
+        deletedAt: null,
+        status: "AKTIF",
+        hari,
+        tanggalMulai: { lte: day },
+        tanggalSelesai: { gte: day },
+        course: { instrukturId: actor.sub, deletedAt: null },
+      },
+      include: {
+        lab: { select: { id: true, kode: true, nama: true } },
+        course: {
+          select: { id: true, kode: true, nama: true, instrukturId: true, asistenIds: true },
+        },
+        attendances: { where: { tanggal: day, deletedAt: null } },
+      },
+      orderBy: [{ jamMulai: "asc" }, { kelas: "asc" }],
+    });
+
+    const teamIds = new Set<string>([actor.sub]);
+    for (const s of sessions) {
+      if (s.course?.instrukturId) teamIds.add(s.course.instrukturId);
+      for (const id of s.course?.asistenIds ?? []) teamIds.add(id);
+      for (const id of s.asistenIds ?? []) teamIds.add(id);
+    }
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...teamIds] }, deletedAt: null },
+      select: { id: true, nama: true, email: true },
+    });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const nowMinutes = jakartaParts(new Date()).minutes;
+
+    return {
+      date: day.toISOString().slice(0, 10),
+      hari,
+      hariNama: DAY_NAMES[hari],
+      isToday,
+      canMark: day.getTime() <= today.getTime(),
+      sessions: sessions.map((s) => {
+        const attendance = new Map(s.attendances.map((a) => [a.userId, a]));
+        const asistenIds = [...new Set([...(s.course?.asistenIds ?? []), ...s.asistenIds])];
+        const members = [
+          s.course?.instrukturId ? this.teamMember(byId, attendance, s.course.instrukturId, "INSTRUKTUR") : null,
+          ...asistenIds.map((id) => this.teamMember(byId, attendance, id, "ASISTEN_DOSEN")),
+        ].filter((m): m is NonNullable<typeof m> => Boolean(m));
+
+        const start = parseTimeToMinutes(s.jamMulai);
+        const end = parseTimeToMinutes(s.jamSelesai);
+        return {
+          id: s.id,
+          mataKuliah: s.course?.nama ?? s.mataKuliah,
+          kode: s.course?.kode ?? null,
+          kelas: s.kelas,
+          semester: s.semester,
+          jamMulai: s.jamMulai,
+          jamSelesai: s.jamSelesai,
+          lab: s.lab,
+          members,
+          complete: members.length > 0 && members.every((m) => m.status),
+          ongoing: isToday && nowMinutes >= start - 10 && nowMinutes <= end + TOLERANCE_MIN,
+        };
+      }),
+    };
+  }
+
+  /** Instruktur mencatat kehadiran dirinya dan asisten dosen untuk satu pertemuan. */
+  async markTeam(
+    sesiId: string,
+    records: { userId: string; status: string; reason?: string }[],
+    actor: SessionActor,
+    dateStr?: string,
+  ) {
+    if (!Array.isArray(records) || records.length === 0) throw new BadRequestException("Tidak ada anggota tim yang dipilih");
+    const day = dateStr ? startOfJakartaDay(dateStr) : todayJakarta();
+    if (Number.isNaN(day.getTime())) throw new BadRequestException("Tanggal absensi tidak valid");
+
+    const sesi = await this.prisma.schedule.findUnique({
+      where: { id: sesiId },
+      include: { course: { select: { instrukturId: true, asistenIds: true } } },
+    });
+    if (!sesi || sesi.deletedAt || sesi.status !== "AKTIF") throw new NotFoundException("Sesi tidak ditemukan");
+    if (!sesi.course) throw new BadRequestException("Sesi belum tertaut dengan mata kuliah");
+    if (actor.role !== "ADMIN_SYSTEM" && sesi.course.instrukturId !== actor.sub) {
+      throw new ForbiddenException("Hanya instruktur pengampu yang dapat mengisi absensi tim ini");
+    }
+
+    const today = todayJakarta();
+    if (day.getTime() > today.getTime()) throw new BadRequestException("Absensi belum dapat diisi sebelum hari pelaksanaan");
+    if (day < startOfJakartaDay(sesi.tanggalMulai) || day > startOfJakartaDay(sesi.tanggalSelesai)) {
+      throw new BadRequestException("Tanggal di luar periode sesi praktikum");
+    }
+    if (dayOfWeekJakarta(day) !== sesi.hari) throw new BadRequestException("Tanggal tidak sesuai hari jadwal sesi");
+
+    const allowed = new Set<string>();
+    if (sesi.course.instrukturId) allowed.add(sesi.course.instrukturId);
+    for (const id of [...sesi.course.asistenIds, ...sesi.asistenIds]) allowed.add(id);
+
+    const saved: any[] = [];
+    for (const record of records) {
+      if (!record?.userId || !allowed.has(record.userId)) {
+        throw new BadRequestException("Anggota tim tidak terdaftar pada mata kuliah ini");
+      }
+      if (!ATTENDANCE_STATUSES.includes(record.status as TeamStatus)) {
+        throw new BadRequestException("Status absensi tidak valid");
+      }
+      const reason = record.reason?.trim() || "Absensi tim pengajar oleh instruktur";
+      const existing = await this.prisma.attendance.findUnique({
+        where: { sesiId_userId_tanggal: { sesiId, userId: record.userId, tanggal: day } },
+      });
+      if (existing) {
+        const updated = await this.prisma.attendance.update({
+          where: { id: existing.id },
+          data: {
+            status: record.status as any,
+            correctedBy: actor.sub,
+            correctionReason: reason,
+            oldValue: existing.status,
+          },
+        });
+        await this.audit.log({
+          actorId: actor.sub,
+          action: "TEAM_ATTENDANCE_CORRECTION",
+          objectType: "Attendance",
+          objectId: existing.id,
+          oldValue: { status: existing.status },
+          newValue: { status: record.status, sesiId, tanggal: day },
+        });
+        saved.push(updated);
+      } else {
+        const created = await this.prisma.attendance.create({
+          data: {
+            sesiId,
+            userId: record.userId,
+            labId: sesi.labId,
+            tanggal: day,
+            scannedAt: new Date(),
+            status: record.status as any,
+            qrTokenScanned: TEAM_MARK,
+            correctedBy: actor.sub,
+            correctionReason: reason,
+          },
+        });
+        await this.audit.log({
+          actorId: actor.sub,
+          action: "TEAM_ATTENDANCE",
+          objectType: "Attendance",
+          objectId: created.id,
+          newValue: { userId: record.userId, status: record.status, sesiId, tanggal: day },
+        });
+        saved.push(created);
+      }
+    }
+
+    return { ok: true, date: day.toISOString().slice(0, 10), marked: saved.length, records: saved };
+  }
+
+  async manual(sesiId: string, userId: string, status: string, reason: string, actorId: string, tanggal?: string) {
     if (!reason || !reason.trim()) throw new BadRequestException("Alasan wajib diisi");
-    if (!["HADIR", "TERLAMBAT", "IZIN", "SAKIT", "TIDAK_HADIR"].includes(status)) throw new BadRequestException("Status absensi tidak valid");
+    if (!ATTENDANCE_STATUSES.includes(status as TeamStatus)) throw new BadRequestException("Status absensi tidak valid");
     const sesi = await this.prisma.schedule.findUnique({ where: { id: sesiId } });
     if (!sesi) throw new NotFoundException("Sesi tidak ditemukan");
-    const existing = await this.prisma.attendance.findUnique({ where: { sesiId_userId: { sesiId, userId } } });
+    const day = tanggal ? startOfJakartaDay(tanggal) : todayJakarta();
+    if (Number.isNaN(day.getTime())) throw new BadRequestException("Tanggal absensi tidak valid");
+    const existing = await this.prisma.attendance.findUnique({
+      where: { sesiId_userId_tanggal: { sesiId, userId, tanggal: day } },
+    });
     if (existing) {
       const updated = await this.prisma.attendance.update({
         where: { id: existing.id },
@@ -133,7 +339,7 @@ export class AttendanceService {
       return updated;
     }
     const created = await this.prisma.attendance.create({
-      data: { sesiId, userId, labId: sesi.labId, scannedAt: new Date(), status: status as any, qrTokenScanned: "MANUAL", correctedBy: actorId, correctionReason: reason },
+      data: { sesiId, userId, labId: sesi.labId, tanggal: day, scannedAt: new Date(), status: status as any, qrTokenScanned: "MANUAL", correctedBy: actorId, correctionReason: reason },
     });
     await this.audit.log({ actorId, action: "MANUAL_ATTENDANCE", objectType: "Attendance", objectId: created.id, newValue: created });
     return created;
@@ -148,16 +354,24 @@ export class AttendanceService {
     return { ok: true };
   }
 
-  list(q: { sesiId?: string; userId?: string; labId?: string; from?: string; to?: string; page?: string; limit?: string }, actor?: { sub: string; role: string }) {
+  list(
+    q: { sesiId?: string; userId?: string; labId?: string; from?: string; to?: string; page?: string; limit?: string },
+    actor?: SessionActor,
+  ) {
     const where: any = { deletedAt: null };
-    if (actor?.role === "USER" && actor.sub) where.userId = actor.sub;
-    else if (q.userId) where.userId = q.userId;
+    if (actor?.role === "USER" && actor.sub) {
+      if (actor.subRoles?.includes("INSTRUKTUR")) {
+        where.OR = [{ userId: actor.sub }, { sesi: { course: { instrukturId: actor.sub } } }];
+      } else {
+        where.userId = actor.sub;
+      }
+    } else if (q.userId) where.userId = q.userId;
     if (q.sesiId) where.sesiId = q.sesiId;
     if (q.labId) where.labId = q.labId;
     if (q.from || q.to) {
-      where.scannedAt = {};
-      if (q.from) where.scannedAt.gte = startOfJakartaDay(q.from);
-      if (q.to) where.scannedAt.lte = startOfJakartaDay(q.to);
+      where.tanggal = {};
+      if (q.from) where.tanggal.gte = startOfJakartaDay(q.from);
+      if (q.to) where.tanggal.lte = startOfJakartaDay(q.to);
     }
     const page = Math.max(1, Number(q.page) || 1);
     const limit = Math.min(MAX_LIMIT, Math.max(1, Number(q.limit) || 200));
