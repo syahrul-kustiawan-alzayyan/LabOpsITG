@@ -1338,6 +1338,90 @@ input[type="checkbox"] {
   font-style: italic;
 }
 
+/* ------------------------------------------------------------ day tabs */
+.day-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.day-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.day-tab:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.day-tab.is-active {
+  background: var(--petrol);
+  border-color: var(--petrol);
+  color: #fff;
+  box-shadow: 0 10px 20px -16px rgba(15, 76, 76, 0.9);
+}
+.day-tab-count {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 76, 76, 0.08);
+  color: var(--petrol);
+  text-align: center;
+}
+.day-tab.is-active .day-tab-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.schedule-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.schedule-board-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.schedule-board-note {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.schedule-board-range {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  white-space: nowrap;
+}
+.schedule-board .timetable {
+  border: none;
+  border-radius: 0;
+}
+
 /* ------------------------------------------------------------ timetable */
 .timetable {
   border: 1px solid var(--line);
@@ -1347,51 +1431,87 @@ input[type="checkbox"] {
 }
 .tt-scroll {
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 .tt-grid {
-  min-width: 820px;
+  width: 100%;
   display: grid;
-  grid-template-columns: 88px repeat(var(--hours, 12), minmax(62px, 1fr));
+  grid-template-columns: var(--label-w, 168px) repeat(var(--hours, 12), minmax(76px, 1fr));
 }
 .tt-head {
-  padding: 9px 6px;
+  padding: 10px 4px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--ink-soft);
   text-align: center;
   border-bottom: 1px solid var(--line);
+  border-left: 1px solid #f2f4f0;
   background: #fafbf9;
+  white-space: nowrap;
 }
 .tt-head:first-child {
+  border-left: none;
+}
+.tt-head-label {
   text-align: left;
-  padding-left: 12px;
+  padding-left: 14px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: #fafbf9;
+  box-shadow: 1px 0 0 var(--line);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.tt-hour-main {
+  font-weight: 600;
+  color: var(--ink);
+}
+.tt-hour-min {
+  opacity: 0.45;
 }
 .tt-row-label {
-  padding: 12px 10px 12px 12px;
-  font-family: var(--font-display);
-  font-size: 14.5px;
-  font-weight: 600;
+  padding: 10px 10px 10px 14px;
   border-bottom: 1px solid #eef1ec;
   border-right: 1px solid #eef1ec;
   background: #fafbf9;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 1px 0 0 #eef1ec;
 }
 .tt-row-code {
   display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--petrol);
 }
 .tt-row-name {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 400;
   line-height: 1.35;
-  opacity: 0.65;
-  margin-top: 3px;
+  color: var(--ink-soft);
+  opacity: 0.75;
 }
 .tt-cell {
   border-bottom: 1px solid #eef1ec;
@@ -1468,50 +1588,156 @@ input[type="checkbox"] {
 }
 .tt-lab-row {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: var(--label-w, 168px) minmax(0, 1fr);
   border-bottom: 1px solid #eef1ec;
 }
 .tt-lab-row:last-child {
   border-bottom: none;
 }
+.tt-lab-row:hover .tt-row-label {
+  background: #f4f6f2;
+}
 .tt-track {
   position: relative;
-  height: 56px;
+  min-width: 0;
+  background-color: var(--surface);
   background-image:
     /* half-hour minor lines */
     repeating-linear-gradient(
       to right,
       transparent,
-      transparent calc((100% / var(--hours, 15) / 2) - 1px),
-      rgba(15, 76, 76, 0.06) calc((100% / var(--hours, 15) / 2) - 1px),
-      rgba(15, 76, 76, 0.06) calc(100% / var(--hours, 15) / 2)
+      transparent calc((100% / var(--hours, 12) / 2) - 1px),
+      rgba(15, 76, 76, 0.05) calc((100% / var(--hours, 12) / 2) - 1px),
+      rgba(15, 76, 76, 0.05) calc(100% / var(--hours, 12) / 2)
     ),
     /* hour major lines */
     repeating-linear-gradient(
       to right,
       transparent,
-      transparent calc(100% / var(--hours, 15) - 1px),
-      #eef1ec calc(100% / var(--hours, 15) - 1px),
-      #eef1ec calc(100% / var(--hours, 15))
+      transparent calc(100% / var(--hours, 12) - 1px),
+      #e6ebe5 calc(100% / var(--hours, 12) - 1px),
+      #e6ebe5 calc(100% / var(--hours, 12))
     );
+}
+.tt-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: #fff;
+  background: linear-gradient(160deg, #177a75 0%, var(--petrol-600) 45%, #0e5a57 100%);
+  border-left: 3px solid #0b3d3d;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -14px rgba(11, 61, 61, 0.9);
+  container-type: inline-size;
+  transition: filter 130ms ease, box-shadow 130ms ease;
+}
+.tt-block:hover {
+  text-decoration: none;
+  filter: brightness(1.1);
+  box-shadow: 0 12px 24px -12px rgba(11, 61, 61, 0.75);
+  z-index: 2;
 }
 .tt-track .tt-block {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  padding: 6px 7px;
-  overflow: hidden;
+  height: auto;
   white-space: normal;
 }
-.tt-track .tt-block .tt-code {
-  display: block;
+.tt-time {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tt-course {
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-size: 12.5px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.tt-meta {
+  margin-top: auto;
+  font-size: 10.5px;
+  line-height: 1.25;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@container (max-width: 158px) {
+  .tt-meta {
+    display: none;
+  }
+  .tt-course {
+    -webkit-line-clamp: 3;
+  }
+}
+.tt-block.booking {
+  background: var(--signal-050);
+  color: #7c3c06;
+  border-left-color: var(--signal);
+  border-top: 1px dashed #e6b98d;
+  border-right: 1px dashed #e6b98d;
+  border-bottom: 1px dashed #e6b98d;
+  box-shadow: none;
+}
+.tt-block.booking .tt-time {
+  opacity: 0.7;
+}
+.tt-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 11px 16px;
+  border-top: 1px solid var(--line);
+  background: #fafbf9;
+}
+.tt-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tt-legend-range {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-soft);
 }
 .tt-swatch {
   width: 12px;
   height: 12px;
   border-radius: 3px;
   display: inline-block;
+}
+
+@media (max-width: 720px) {
+  .timetable {
+    --label-w: 104px;
+  }
+  .tt-row-name {
+    display: none;
+  }
+  .tt-row-label,
+  .tt-head-label {
+    padding-left: 10px;
+  }
+  .tt-row-label {
+    padding-right: 8px;
+  }
 }
 
 /* ------------------------------------------------------------ popover */

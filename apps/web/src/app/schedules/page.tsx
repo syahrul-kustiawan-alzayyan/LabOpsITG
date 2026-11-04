@@ -1,11 +1,12 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Icon } from "@/components/Icon";
-import { ScheduleGrid } from "@/components/ScheduleGrid";
+import { ScheduleGrid, hourRangeFor } from "@/components/ScheduleGrid";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const HARI_KERJA = [1, 2, 3, 4, 5];
 
 const EMPTY_FORM = {
   labId: "",
@@ -30,7 +31,10 @@ export default function SchedulesPage() {
   const [filterLab, setFilterLab] = useState("");
   const [myOnly, setMyOnly] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [dayFilter, setDayFilter] = useState<number | "">("");
+  const [day, setDay] = useState<number>(() => {
+    const now = new Date().getDay();
+    return now === 0 || now === 6 ? 1 : now;
+  });
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<any>(EMPTY_FORM);
   const [msg, setMsg] = useState<{ type: string; text: string } | null>(null);
@@ -90,12 +94,16 @@ export default function SchedulesPage() {
     }
   }
 
-  const visible = dayFilter === "" ? schedules : schedules.filter((s) => s.hari === dayFilter);
   const grouped: Record<number, any[]> = {};
-  for (const s of visible) {
+  for (const s of schedules) {
     if (!grouped[s.hari]) grouped[s.hari] = [];
     grouped[s.hari].push(s);
   }
+
+  const daySessions = grouped[day] || [];
+  const dayLabCount = new Set(daySessions.map((s) => s.labId)).size;
+  const dayTabs = HARI.map((_, i) => i).filter((i) => (grouped[i] || []).length > 0 || i === day);
+  const hourRange = useMemo(() => hourRangeFor(schedules), [schedules]);
 
   return (
     <>
@@ -214,17 +222,6 @@ export default function SchedulesPage() {
               ))}
             </select>
           </div>
-          <div className="field" style={{ minWidth: 160 }}>
-            <label htmlFor="filter-hari">Hari</label>
-            <select id="filter-hari" value={dayFilter} onChange={(e) => setDayFilter(e.target.value === "" ? "" : Number(e.target.value))}>
-              <option value="">Semua hari</option>
-              {HARI.map((h, i) => (
-                <option key={i} value={i}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
           <label style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 18, fontSize: 15.5 }}>
             <input type="checkbox" checked={myOnly} onChange={(e) => setMyOnly(e.target.checked)} />
             Jadwal saya
@@ -246,29 +243,54 @@ export default function SchedulesPage() {
             <div className="skeleton" key={i} style={{ height: 40, marginBottom: 8 }} />
           ))}
         </div>
+      ) : schedules.length === 0 ? (
+        <div className="card">
+          <div className="empty">
+            <Icon name="calendar" size={26} />
+            <p className="empty-title">Belum ada jadwal</p>
+            <p className="empty-text">
+              Tambahkan jadwal praktikum untuk mulai memetakan penggunaan lab.
+            </p>
+          </div>
+        </div>
       ) : view === "grid" ? (
         <>
-          {dayFilter === "" ? (
-            <div style={{ display: "grid", gap: 14 }}>
-              {HARI.map((h, i) => {
-                const items = grouped[i] || [];
-                if (items.length === 0) return null;
-                return (
-                  <div key={i}>
-                    <div className="section-head" style={{ marginBottom: 8 }}>
-                      <h2 className="section-title" style={{ fontSize: 15 }}>
-                        {h}
-                      </h2>
-                      <span className="badge badge-plain">{items.length} sesi</span>
-                    </div>
-                    <ScheduleGrid schedules={items} labs={labs} />
-                  </div>
-                );
-              })}
+          <div className="day-tabs" role="tablist" aria-label="Pilih hari">
+            {dayTabs.map((i) => (
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                aria-selected={day === i}
+                className={`day-tab ${day === i ? "is-active" : ""}`}
+                onClick={() => setDay(i)}
+              >
+                <span className="day-tab-name">{HARI[i]}</span>
+                <span className="day-tab-count">{grouped[i]?.length || 0}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="card card-flush schedule-board">
+            <div className="schedule-board-head">
+              <div>
+                <h2 className="schedule-board-title">{HARI[day]}</h2>
+                <p className="schedule-board-note">
+                  {daySessions.length} sesi · {dayLabCount} lab terpakai
+                </p>
+              </div>
+              <span className="schedule-board-range">
+                {String(hourRange.start).padStart(2, "0")}:00–
+                {String(hourRange.end).padStart(2, "0")}:00
+              </span>
             </div>
-          ) : (
-            <ScheduleGrid schedules={visible} labs={labs} emptyLabel={`Tidak ada jadwal pada hari ${HARI[dayFilter]}`} />
-          )}
+            <ScheduleGrid
+              schedules={daySessions}
+              labs={labs}
+              hourRange={hourRange}
+              emptyLabel={`Tidak ada sesi pada hari ${HARI[day]}`}
+            />
+          </div>
         </>
       ) : (
         <>
@@ -338,16 +360,6 @@ export default function SchedulesPage() {
             );
           })}
         </>
-      )}
-
-      {!loading && visible.length === 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="empty">
-            <Icon name="calendar" size={26} />
-            <p className="empty-title">Tidak ada jadwal yang cocok</p>
-            <p className="empty-text">Ubah filter lab atau hari untuk melihat sesi lain.</p>
-          </div>
-        </div>
       )}
     </>
   );

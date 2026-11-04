@@ -5,7 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { PublicShell } from "@/components/PublicShell";
-import { ScheduleGrid } from "@/components/ScheduleGrid";
+import { ScheduleGrid, hourRangeFor } from "@/components/ScheduleGrid";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -25,6 +25,7 @@ export default function JadwalPage() {
     [schedules, filterLab],
   );
   const daySessions = filtered.filter((s) => s.hari === day);
+  const hourRange = useMemo(() => hourRangeFor(schedules), [schedules]);
 
   return (
     <PublicShell>
@@ -70,6 +71,7 @@ export default function JadwalPage() {
         <ScheduleGrid
           schedules={daySessions}
           labs={labs}
+          hourRange={hourRange}
           emptyLabel={`Tidak ada sesi pada hari ${HARI[day]}`}
         />
 

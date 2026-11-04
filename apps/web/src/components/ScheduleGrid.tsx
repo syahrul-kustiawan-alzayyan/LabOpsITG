@@ -21,12 +21,13 @@ type GridBooking = {
   keperluan: string;
 };
 
-const START_HOUR = 6;
-const END_HOUR = 21;
-const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
-const LABEL_WIDTH = 88;
-const TRACK_HEIGHT = 56;
-const BLOCK_GAP = 4;
+const LABEL_WIDTH = 132;
+const TRACK_HEIGHT = 92;
+const BLOCK_GAP = 6;
+const MIN_PX_PER_HOUR = 76;
+const DEFAULT_START = 7;
+const DEFAULT_END = 18;
+const MIN_SPAN = 8;
 
 type RowBlock = {
   key: string;
@@ -46,6 +47,22 @@ function toHour(t: string) {
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
+}
+
+/**
+ * Rentang jam mengikuti data supaya tidak ada ruang kosong yang bikin
+ * blok sesi menyempit. Minimal 8 jam agar sumbu waktu tetap terbaca.
+ */
+export function hourRangeFor(items: { jamMulai: string; jamSelesai: string }[]) {
+  if (items.length === 0) return { start: DEFAULT_START, end: DEFAULT_END };
+  let start = DEFAULT_START;
+  let end = DEFAULT_END;
+  for (const item of items) {
+    start = Math.min(start, Math.floor(toHour(item.jamMulai)));
+    end = Math.max(end, Math.ceil(toHour(item.jamSelesai)));
+  }
+  if (end - start < MIN_SPAN) end = start + MIN_SPAN;
+  return { start: clamp(start, 0, 23), end: clamp(end, 1, 24) };
 }
 
 /**
@@ -96,13 +113,20 @@ export function ScheduleGrid({
   bookings = [],
   showBookings = false,
   emptyLabel = "Tidak ada sesi pada hari ini.",
+  hourRange,
 }: {
   schedules: GridSchedule[];
   labs: { id: string; kode: string; nama: string }[];
   bookings?: GridBooking[];
   showBookings?: boolean;
   emptyLabel?: string;
+  hourRange?: { start: number; end: number };
 }) {
+  const range = hourRange ?? hourRangeFor([...schedules, ...bookings]);
+  const span = range.end - range.start;
+  const hours = Array.from({ length: span }, (_, i) => range.start + i);
+  const minWidth = LABEL_WIDTH + span * MIN_PX_PER_HOUR;
+
   const rows = labs.filter(
     (lab) =>
       schedules.some((s) => s.labId === lab.id) ||
@@ -123,18 +147,17 @@ export function ScheduleGrid({
   return (
     <div className="timetable">
       <div className="tt-scroll">
-        <div style={{ minWidth: 860 }}>
+        <div style={{ minWidth }}>
           <div
             className="tt-grid"
             style={{
-              ["--hours" as any]: HOURS.length,
-              gridTemplateColumns: `${LABEL_WIDTH}px repeat(${HOURS.length}, minmax(62px, 1fr))`,
+              ["--hours" as any]: hours.length,
             }}
           >
-            <div className="tt-head">Lab</div>
-            {HOURS.map((h) => (
+            <div className="tt-head tt-head-label">Jam</div>
+            {hours.map((h) => (
               <div className="tt-head" key={h}>
-                {String(h).padStart(2, "0")}
+                {String(h).padStart(2, "0")}<span className="tt-hour-min">:00</span>
               </div>
             ))}
           </div>
@@ -147,8 +170,8 @@ export function ScheduleGrid({
                 .map((s) => ({
                   key: s.id,
                   kind: "schedule" as const,
-                  start: clamp(toHour(s.jamMulai), START_HOUR, END_HOUR),
-                  end: clamp(toHour(s.jamSelesai), START_HOUR, END_HOUR),
+                  start: clamp(toHour(s.jamMulai), range.start, range.end),
+                  end: clamp(toHour(s.jamSelesai), range.start, range.end),
                   schedule: s,
                 })),
               ...(showBookings
@@ -157,8 +180,8 @@ export function ScheduleGrid({
                     .map((b) => ({
                       key: b.id,
                       kind: "booking" as const,
-                      start: clamp(toHour(b.jamMulai), START_HOUR, END_HOUR),
-                      end: clamp(toHour(b.jamSelesai), START_HOUR, END_HOUR),
+                      start: clamp(toHour(b.jamMulai), range.start, range.end),
+                      end: clamp(toHour(b.jamSelesai), range.start, range.end),
                       booking: b,
                     }))
                 : []),
@@ -178,11 +201,8 @@ export function ScheduleGrid({
                 </div>
                 <div className="tt-track" style={{ height: TRACK_HEIGHT * laneCount }}>
                   {placed.map((block) => {
-                    const width = Math.max(
-                      1 / HOURS.length,
-                      (block.end - block.start) / HOURS.length,
-                    );
-                    const left = (block.start - START_HOUR) / HOURS.length;
+                    const width = Math.max(1 / span, (block.end - block.start) / span);
+                    const left = (block.start - range.start) / span;
                     const style = {
                       left: `${left * 100}%`,
                       width: `${width * 100}%`,
@@ -192,6 +212,9 @@ export function ScheduleGrid({
 
                     if (block.kind === "schedule" && block.schedule) {
                       const s = block.schedule;
+                      const meta = [s.kelas ? `Kelas ${s.kelas}` : "", s.pengampu?.nama || ""]
+                        .filter(Boolean)
+                        .join(" · ");
                       return (
                         <Link
                           key={block.key}
@@ -200,13 +223,11 @@ export function ScheduleGrid({
                           style={style}
                           title={`${s.mataKuliah} · ${s.kelas} · ${s.jamMulai}–${s.jamSelesai}${s.pengampu?.nama ? ` · ${s.pengampu.nama}` : ""}`}
                         >
-                          <span className="tt-code">
+                          <span className="tt-time">
                             {s.jamMulai}–{s.jamSelesai}
                           </span>
                           <span className="tt-course">{s.mataKuliah}</span>
-                          <span className="tt-class" style={{ display: "block", opacity: 0.85 }}>
-                            {s.kelas}
-                          </span>
+                          {meta && <span className="tt-meta">{meta}</span>}
                         </Link>
                       );
                     }
@@ -219,10 +240,11 @@ export function ScheduleGrid({
                         style={style}
                         title={`Peminjaman: ${b.keperluan} (${b.jamMulai}–${b.jamSelesai})`}
                       >
-                        <span className="tt-code">
+                        <span className="tt-time">
                           {b.jamMulai}–{b.jamSelesai}
                         </span>
                         <span className="tt-course">{b.keperluan}</span>
+                        <span className="tt-meta">Peminjaman disetujui</span>
                       </span>
                     );
                   })}
@@ -245,8 +267,9 @@ export function ScheduleGrid({
             Peminjaman disetujui
           </span>
         )}
-        <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: 14 }}>
-          {rows.length} lab · {HOURS[0]}:00–{END_HOUR}:00
+        <span className="tt-legend-range">
+          {rows.length} lab · {String(range.start).padStart(2, "0")}:00–
+          {String(range.end).padStart(2, "0")}:00
         </span>
       </div>
     </div>
