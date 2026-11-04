@@ -71,6 +71,24 @@ export class AttendanceController {
     return this.svc.confirmValidation(body.qrToken, (req as any).user.sub);
   }
 
+  @Get("admin/stats")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  adminStats(@Req() req: Request) {
+    return this.svc.adminStats();
+  }
+
+  @Get("admin/courses")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  adminCourses(@Req() req: Request) {
+    return this.svc.adminCourses();
+  }
+
+  @Get("admin/courses/:courseId")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  adminCourseDetail(@Param("courseId") courseId: string) {
+    return this.svc.adminCourseDetail(courseId);
+  }
+
   @Get("instruktur/courses")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
   instrukturCourses(@Req() req: Request) {

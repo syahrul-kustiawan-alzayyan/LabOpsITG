@@ -629,6 +629,164 @@ export class AttendanceService {
     return results;
   }
 
+  /** Admin: KPI absensi keseluruhan. */
+  async adminStats() {
+    const [totalSessions, totalAttendance, hadirCount] = await Promise.all([
+      this.prisma.attendance.groupBy({
+        by: ["sesiId"],
+        where: { deletedAt: null },
+        _count: { sesiId: true },
+      }),
+      this.prisma.attendance.count({ where: { deletedAt: null } }),
+      this.prisma.attendance.count({ where: { deletedAt: null, status: "HADIR" } }),
+    ]);
+
+    // Count distinct sesi with attendance
+    const distinctSesi = new Set(totalSessions.map((s) => s.sesiId));
+
+    // Get all attendance records to compute per-course stats
+    const allAtts = await this.prisma.attendance.findMany({
+      where: { deletedAt: null },
+      include: {
+        sesi: { select: { mataKuliah: true, kelas: true, mataKuliahId: true } },
+        user: { select: { nama: true, email: true, subRoles: true } },
+      },
+    });
+
+    // Group by mataKuliahId
+    const byCourse: Record<string, { kode: string; nama: string; total: number; hadir: number; pertemuan: Set<number> }> = {};
+    for (const a of allAtts) {
+      const mkId = a.sesi.mataKuliahId;
+      if (!mkId) continue;
+      if (!byCourse[mkId]) {
+        byCourse[mkId] = {
+          kode: a.sesi.mataKuliah,
+          nama: a.sesi.mataKuliah,
+          total: 0,
+          hadir: 0,
+          pertemuan: new Set(),
+        };
+      }
+      byCourse[mkId].total += 1;
+      if (a.status === "HADIR") byCourse[mkId].hadir += 1;
+      if (a.pertemuanKe != null) byCourse[mkId].pertemuan.add(a.pertemuanKe);
+    }
+
+    return {
+      totalSessions: distinctSesi.size,
+      totalAttendance: totalAttendance,
+      hadirCount,
+      notHadirCount: totalAttendance - hadirCount,
+      hadirRate: totalAttendance > 0 ? Math.round((hadirCount / totalAttendance) * 100) : 0,
+      courses: Object.values(byCourse).map((c) => ({
+        kode: c.kode,
+        nama: c.nama,
+        total: c.total,
+        hadir: c.hadir,
+        notHadir: c.total - c.hadir,
+        pertemuanCount: c.pertemuan.size,
+        hadirRate: c.total > 0 ? Math.round((c.hadir / c.total) * 100) : 0,
+      })),
+    };
+  }
+
+  /** Admin: daftar mata kuliah dengan ringkasan absensi. */
+  async adminCourses() {
+    const atts = await this.prisma.attendance.findMany({
+      where: { deletedAt: null },
+      include: {
+        sesi: { select: { mataKuliahId: true, mataKuliah: true, kelas: true } },
+        user: { select: { nama: true, subRoles: true } },
+      },
+      orderBy: { scannedAt: "desc" },
+    });
+
+    const byCourse: Record<string, {
+      id: string; kode: string; nama: string; total: number; hadir: number;
+      instruktur: Set<string>; asdos: Set<string>; pertemuan: Set<number>;
+    }> = {};
+
+    for (const a of atts) {
+      const mkId = a.sesi.mataKuliahId;
+      if (!mkId) continue;
+      if (!byCourse[mkId]) {
+        byCourse[mkId] = {
+          id: mkId,
+          kode: a.sesi.mataKuliah,
+          nama: a.sesi.mataKuliah,
+          total: 0, hadir: 0,
+          instruktur: new Set(), asdos: new Set(), pertemuan: new Set(),
+        };
+      }
+      byCourse[mkId].total += 1;
+      if (a.status === "HADIR") byCourse[mkId].hadir += 1;
+      if (a.user.subRoles.includes("INSTRUKTUR")) byCourse[mkId].instruktur.add(a.userId);
+      if (a.user.subRoles.includes("ASISTEN_DOSEN")) byCourse[mkId].asdos.add(a.userId);
+      if (a.pertemuanKe != null) byCourse[mkId].pertemuan.add(a.pertemuanKe);
+    }
+
+    return Object.values(byCourse).map((c) => ({
+      id: c.id,
+      kode: c.kode,
+      nama: c.nama,
+      total: c.total,
+      hadir: c.hadir,
+      notHadir: c.total - c.hadir,
+      hadirRate: c.total > 0 ? Math.round((c.hadir / c.total) * 100) : 0,
+      instrukturCount: c.instruktur.size,
+      asdosCount: c.asdos.size,
+      pertemuanCount: c.pertemuan.size,
+    }));
+  }
+
+  /** Admin: detail absensi per mata kuliah per pertemuan (instruktur + asdos). */
+  async adminCourseDetail(courseId: string) {
+    const atts = await this.prisma.attendance.findMany({
+      where: { deletedAt: null, sesi: { mataKuliahId: courseId } },
+      include: {
+        sesi: { select: { id: true, mataKuliah: true, kelas: true, hari: true, jamMulai: true, jamSelesai: true, tanggalMulai: true, tanggalSelesai: true } },
+        user: { select: { id: true, nama: true, email: true, subRoles: true } },
+      },
+      orderBy: [{ scannedAt: "asc" }],
+    });
+
+    // Group by pertemuanKe
+    const byPertemuan: Record<number, {
+      pertemuanKe: number; total: number; hadir: number;
+      instruktur: Array<{ id: string; nama: string; status: string }>;
+      asdos: Array<{ id: string; nama: string; status: string }>;
+    }> = {};
+
+    let courseNama = "";
+    let courseKode = "";
+
+    for (const a of atts) {
+      if (!courseNama) {
+        courseNama = a.sesi.mataKuliah;
+        courseKode = a.sesi.mataKuliah;
+      }
+      const pk = a.pertemuanKe ?? 0;
+      if (!byPertemuan[pk]) {
+        byPertemuan[pk] = {
+          pertemuanKe: pk, total: 0, hadir: 0,
+          instruktur: [], asdos: [],
+        };
+      }
+      byPertemuan[pk].total += 1;
+      if (a.status === "HADIR") byPertemuan[pk].hadir += 1;
+      const member = { id: a.userId, nama: a.user.nama, status: a.status };
+      if (a.user.subRoles.includes("INSTRUKTUR")) byPertemuan[pk].instruktur.push(member);
+      if (a.user.subRoles.includes("ASISTEN_DOSEN")) byPertemuan[pk].asdos.push(member);
+    }
+
+    return {
+      courseId,
+      kode: courseKode,
+      nama: courseNama,
+      pertemuan: Object.values(byPertemuan).sort((a, b) => a.pertemuanKe - b.pertemuanKe),
+    };
+  }
+
   async manual(sesiId: string, userId: string, status: string, reason: string, actorId: string, tanggal?: string) {
     if (!reason || !reason.trim()) throw new BadRequestException("Alasan wajib diisi");
     if (!ATTENDANCE_STATUSES.includes(status as TeamStatus)) throw new BadRequestException("Status absensi tidak valid");
