@@ -3,7 +3,7 @@ import { login } from "./helpers";
 
 test.describe("Absensi QR sesi", () => {
   test("token tidak dikenal ditolak dengan pesan", async ({ page }) => {
-    await login(page, "mahasiswa");
+    await login(page, "koordinator");
     await page.goto("/attendance");
 
     await page.locator("#qr").fill("token-palsu-e2e-123");

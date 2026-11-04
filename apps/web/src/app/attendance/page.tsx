@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 import { InstrukturSessionCreate } from "@/components/InstrukturSessionCreate";
 import { TeamAttendance } from "@/components/TeamAttendance";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const STATUS_BADGE: Record<string, string> = {
@@ -17,6 +18,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function AttendancePage() {
+  const router = useRouter();
   const [me, setMe] = useState<any>(null);
   const [token, setToken] = useState("");
   const [msg, setMsg] = useState<{ type: string; text: string } | null>(null);
@@ -32,6 +34,13 @@ export default function AttendancePage() {
 
   const isCoord = me && ["ADMIN_SYSTEM", "COORDINATOR"].includes(me.role);
   const isInstruktur = !!me?.subRoles?.includes("INSTRUKTUR");
+
+  // Mahasiswa (USER tanpa subrole INSTRUKTUR) tidak boleh mengakses halaman ini
+  useEffect(() => {
+    if (me && me.role === "USER" && !isInstruktur) {
+      router.replace("/dashboard?denied=1");
+    }
+  }, [me, isInstruktur, router]);
 
   const load = useCallback(async () => {
     setLoading(true);
