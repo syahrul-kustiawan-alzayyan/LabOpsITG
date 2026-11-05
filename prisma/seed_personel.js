@@ -6,7 +6,11 @@
  * - Schedule milik mata kuliah ikut disinkronkan asistenIds-nya
  *
  * Jalankan: node prisma/seed_personel.js
- * Login instruktur: instruktur01@labops.local / instruktur123
+ * Login instruktur (username / kata sandi):
+ *   instruktur01 / aditya123    instruktur05 / dimas123
+ *   instruktur02 / rani123      instruktur06 / nadia123
+ *   instruktur03 / bayu123      instruktur07 / fajar123
+ *   instruktur04 / siti123
  * Login asisten  : asisten01@labops.local / asisten123
  */
 const { PrismaClient } = require("@prisma/client");
@@ -18,13 +22,13 @@ process.env.DATABASE_URL =
 const prisma = new PrismaClient();
 
 const INSTRUKTUR = [
-  { nama: "Aditya Pratama, M.Kom.", email: "instruktur01@labops.local" },
-  { nama: "Rani Puspitasari, M.Kom.", email: "instruktur02@labops.local" },
-  { nama: "Bayu Nugroho, M.T.", email: "instruktur03@labops.local" },
-  { nama: "Siti Fadhilah, M.Kom.", email: "instruktur04@labops.local" },
-  { nama: "Dimas Ramadhan, M.Kom.", email: "instruktur05@labops.local" },
-  { nama: "Nadia Rahmawati, M.T.", email: "instruktur06@labops.local" },
-  { nama: "Fajar Setiawan, M.Kom.", email: "instruktur07@labops.local" },
+  { nama: "Aditya Pratama, M.Kom.", email: "instruktur01@labops.local", username: "instruktur01", password: "aditya123" },
+  { nama: "Rani Puspitasari, M.Kom.", email: "instruktur02@labops.local", username: "instruktur02", password: "rani123" },
+  { nama: "Bayu Nugroho, M.T.", email: "instruktur03@labops.local", username: "instruktur03", password: "bayu123" },
+  { nama: "Siti Fadhilah, M.Kom.", email: "instruktur04@labops.local", username: "instruktur04", password: "siti123" },
+  { nama: "Dimas Ramadhan, M.Kom.", email: "instruktur05@labops.local", username: "instruktur05", password: "dimas123" },
+  { nama: "Nadia Rahmawati, M.T.", email: "instruktur06@labops.local", username: "instruktur06", password: "nadia123" },
+  { nama: "Fajar Setiawan, M.Kom.", email: "instruktur07@labops.local", username: "instruktur07", password: "fajar123" },
 ];
 
 const ASISTEN = [
@@ -44,10 +48,10 @@ const ASISTEN = [
   { nama: "Nabila Putri", email: "asisten14@labops.local" },
 ];
 
-async function upsertPersonel(list, subRole, password) {
-  const passwordHash = await bcrypt.hash(password, 10);
+async function upsertPersonel(list, subRole, defaultPassword) {
   const users = [];
   for (const p of list) {
+    const passwordHash = await bcrypt.hash(p.password || defaultPassword, 10);
     const user = await prisma.user.upsert({
       where: { email: p.email },
       update: { nama: p.nama, passwordHash, role: "USER", subRoles: [subRole], status: "ACTIVE", deletedAt: null },
@@ -101,7 +105,7 @@ async function upsertPersonel(list, subRole, password) {
         asistenDibuat: asisten.length,
         mataKuliahTerisi: hasil.length,
         login: {
-          instruktur: "instruktur01@labops.local / instruktur123",
+          instruktur: "instruktur01 / aditya123 (s.d. instruktur07 / fajar123)",
           asisten: "asisten01@labops.local / asisten123",
         },
         daftar: hasil,

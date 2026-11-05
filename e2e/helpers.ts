@@ -5,7 +5,7 @@ export const ACCOUNTS = {
   koordinator: { email: "koordinator@labops.local", password: "koord123" },
   dosen: { email: "drdedekurniadimkom@labops.local", password: "dosen123" },
   mahasiswa: { email: "mhs01@labops.local", password: "mhs123" },
-  instruktur: { email: "instruktur01@labops.local", password: "instruktur123" },
+  instruktur: { email: "instruktur01", password: "aditya123" },
   prodi: { email: "prodi@labops.local", password: "prodi123" },
 } as const;
 

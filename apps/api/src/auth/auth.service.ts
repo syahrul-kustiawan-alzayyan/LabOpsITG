@@ -20,7 +20,10 @@ export class AuthService {
   }
 
   async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    const identifier = (email || "").trim().toLowerCase();
+    // Terima juga username pendek (mis. "instruktur01") tanpa domain email.
+    const emailAddress = identifier.includes("@") ? identifier : `${identifier}@labops.local`;
+    const user = await this.prisma.user.findUnique({ where: { email: emailAddress } });
     if (!user || user.deletedAt || user.status !== "ACTIVE") throw new UnauthorizedException("Email atau kata sandi salah");
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) throw new UnauthorizedException("Email atau kata sandi salah");

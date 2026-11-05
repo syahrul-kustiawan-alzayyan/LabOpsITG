@@ -23,7 +23,7 @@ const NAV: NavItem[] = [
   { href: "/reports", label: "Laporan", icon: "report", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Wawasan" },
   { href: "/prodi", label: "Prodi", icon: "prodi", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Wawasan" },
   { href: "/audit", label: "Jejak Audit", icon: "shield", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Wawasan" },
-  { href: "/users", label: "Pengguna", icon: "users", roles: ["ADMIN_SYSTEM"], group: "Wawasan" },
+  { href: "/users", label: "Pengguna", icon: "users", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Wawasan" },
 ];
 
 const MOBILE = ["/dashboard", "/schedules", "/bookings", "/issues", "/attendance"];

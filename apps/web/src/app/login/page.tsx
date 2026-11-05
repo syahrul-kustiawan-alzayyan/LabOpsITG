@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { api, API_BASE } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 
+const INSTRUKTUR_ACCOUNTS = [
+  { username: "instruktur01", password: "aditya123", nama: "Aditya Pratama" },
+  { username: "instruktur02", password: "rani123", nama: "Rani Puspitasari" },
+  { username: "instruktur03", password: "bayu123", nama: "Bayu Nugroho" },
+  { username: "instruktur04", password: "siti123", nama: "Siti Fadhilah" },
+  { username: "instruktur05", password: "dimas123", nama: "Dimas Ramadhan" },
+  { username: "instruktur06", password: "nadia123", nama: "Nadia Rahmawati" },
+  { username: "instruktur07", password: "fajar123", nama: "Fajar Setiawan" },
+] as const;
+
 export default function LoginPage() {
   const router = useRouter();
   const [next, setNext] = useState("/dashboard");
@@ -34,6 +44,12 @@ export default function LoginPage() {
     }
   }
 
+  function fillCredential(identifier: string, pass: string) {
+    setEmail(identifier);
+    setPassword(pass);
+    setError("");
+  }
+
   function fill(role: "admin" | "koordinator" | "dosen" | "mahasiswa") {
     const map = {
       admin: ["admin@labops.local", "admin123"],
@@ -41,9 +57,7 @@ export default function LoginPage() {
       dosen: ["drdedekurniadimkom@labops.local", "dosen123"],
       mahasiswa: ["mhs01@labops.local", "mhs123"],
     } as const;
-    setEmail(map[role][0]);
-    setPassword(map[role][1]);
-    setError("");
+    fillCredential(map[role][0], map[role][1]);
   }
 
   return (
@@ -92,17 +106,21 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit} className="form-grid" noValidate>
             <div className="field">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">Email atau username</label>
               <input
                 id="email"
                 className="input"
-                type="email"
-                autoComplete="email"
-                placeholder="nama@labops.local"
+                type="text"
+                autoComplete="username"
+                inputMode="email"
+                placeholder="instruktur01 atau nama@labops.local"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              <span className="field-hint">
+                Bisa memakai email lengkap atau username, mis. <code>instruktur01</code>.
+              </span>
             </div>
             <div className="field">
               <label htmlFor="password">Kata sandi</label>
@@ -156,6 +174,27 @@ export default function LoginPage() {
                 Mahasiswa
               </button>
             </div>
+
+            <details className="instruktur-accounts">
+              <summary>Akun instruktur (7) — klik untuk isi otomatis</summary>
+              <div className="credential-list">
+                {INSTRUKTUR_ACCOUNTS.map((a) => (
+                  <button
+                    key={a.username}
+                    type="button"
+                    className="credential-item"
+                    onClick={() => fillCredential(a.username, a.password)}
+                    title={`Isi formulir dengan ${a.username}`}
+                  >
+                    <span>
+                      <strong>{a.username}</strong> · {a.nama}
+                    </span>
+                    <code>{a.password}</code>
+                  </button>
+                ))}
+              </div>
+            </details>
+
             <div style={{ marginTop: 8 }}>
               Server: <code>{API_BASE.replace(/^https?:\/\//, "")}</code>
             </div>
