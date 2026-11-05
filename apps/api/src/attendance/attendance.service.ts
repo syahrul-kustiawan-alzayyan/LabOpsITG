@@ -606,10 +606,14 @@ export class AttendanceService {
     return { ok: true, sesiId: s.id, validated: atts.length, date: day.toISOString().slice(0, 10) };
   }
 
-  /** Daftar mata kuliah yang diampu instruktur (untuk dropdown pembuatan sesi). */
+  /** Daftar mata kuliah yang diampu instruktur atau diikuti asisten dosen (untuk dropdown pembuatan sesi). */
   async instrukturCourses(actorId: string) {
     const courses = await this.prisma.mataKuliah.findMany({
-      where: { instrukturId: actorId, deletedAt: null, status: "AKTIF" },
+      where: {
+        deletedAt: null,
+        status: "AKTIF",
+        OR: [{ instrukturId: actorId }, { asistenIds: { has: actorId } }],
+      },
       select: { id: true, kode: true, nama: true, asistenIds: true, instrukturId: true },
       orderBy: { kode: "asc" },
     });
@@ -681,13 +685,17 @@ export class AttendanceService {
     return results;
   }
 
-  /** Riwayat sesi absensi yang dibuat oleh instruktur (dikelompokkan per sesi + tanggal + pertemuan). */
+  /** Riwayat sesi absensi yang dibuat oleh instruktur atau asisten dosen (dikelompokkan per sesi + tanggal + pertemuan). */
   async instrukturSessions(actorId: string, limit = 20) {
     const rows = await this.prisma.attendance.findMany({
       where: {
         deletedAt: null,
         qrTokenScanned: "INSTRUKTUR_SESSION",
-        sesi: { course: { instrukturId: actorId } },
+        OR: [
+          { sesi: { course: { instrukturId: actorId } } },
+          { sesi: { course: { asistenIds: { has: actorId } } } },
+          { sesi: { asistenIds: { has: actorId } } },
+        ],
       },
       include: {
         sesi: {

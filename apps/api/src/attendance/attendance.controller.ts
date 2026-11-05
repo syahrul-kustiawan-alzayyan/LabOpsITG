@@ -90,13 +90,13 @@ export class AttendanceController {
   }
 
   @Get("instruktur/courses")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   instrukturCourses(@Req() req: Request) {
     return this.svc.instrukturCourses((req as any).user.sub);
   }
 
   @Get("instruktur/sessions")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   instrukturSessions(@Req() req: Request) {
     return this.svc.instrukturSessions((req as any).user.sub);
   }
