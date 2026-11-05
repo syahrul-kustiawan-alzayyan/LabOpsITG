@@ -1,4 +1,4 @@
-import { IsArray, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { IsArray, IsIn, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 export const ISSUE_CATEGORIES = [
   "PERANGKAT",
@@ -17,10 +17,6 @@ export class CreatePublicIssueDto {
   @IsIn(ISSUE_CATEGORIES, { message: "Kategori tidak valid" })
   kategori: string;
 
-  @IsOptional()
-  @IsIn(["RENDAH", "SEDANG", "TINGGI"], { message: "Urgensi tidak valid" })
-  urgensi?: string;
-
   @IsString()
   @MinLength(10, { message: "Deskripsi minimal 10 karakter" })
   @MaxLength(2000)
@@ -36,17 +32,8 @@ export class CreatePublicIssueDto {
   @MaxLength(120)
   namaPelapor: string;
 
-  @IsEmail({}, { message: "Email tidak valid" })
-  @MaxLength(160)
-  emailPelapor: string;
-
-  @IsOptional()
   @IsString()
+  @MinLength(5, { message: "NIM tidak valid" })
   @MaxLength(30)
-  noWhatsapp?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(30)
-  nim?: string;
+  nim: string;
 }

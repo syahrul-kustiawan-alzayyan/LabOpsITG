@@ -718,6 +718,21 @@ a.stat-card:hover {
   text-transform: uppercase;
   color: var(--ink-soft);
 }
+.auto-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-size: 13.5px;
+}
+.auto-time svg {
+  flex: none;
+  color: var(--petrol-600);
+}
 .code-panel {
   display: grid;
   gap: 6px;

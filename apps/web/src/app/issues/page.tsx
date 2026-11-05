@@ -559,9 +559,14 @@ export default function IssuesPage() {
                   </p>
                   {!detail.pelapor && detail.namaPelapor && (
                     <p className="card-note">
-                      Kontak publik: {detail.emailPelapor || "-"}
-                      {detail.noWhatsapp ? ` · ${detail.noWhatsapp}` : ""}
-                      {detail.nim ? ` · NIM ${detail.nim}` : ""}
+                      Pelapor publik: NIM {detail.nim || "-"} · dilaporkan{" "}
+                      {new Date(detail.createdAt).toLocaleString("id-ID", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   )}
                 </div>

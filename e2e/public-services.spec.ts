@@ -36,30 +36,23 @@ test.describe("Layanan publik tanpa login", () => {
     await expect(status).toContainText(keperluan);
   });
 
-  test("pengunjung dapat melaporkan kendala dan memeriksa tiket", async ({ page }) => {
+  test("pengunjung dapat melaporkan kendala tanpa akun", async ({ page }) => {
     const deskripsi = unique("E2E publik kendala");
-    const email = `publik-${Date.now()}@example.com`;
 
     await page.goto("/informasi/kendala");
     await page.locator("#k-lab").selectOption({ index: 1 });
     await page.locator("#k-kategori").selectOption("JARINGAN");
-    await page.locator("#k-urgensi").selectOption("TINGGI");
     await page.locator("#k-deskripsi").fill(deskripsi);
     await page.locator("#k-nama").fill("Pelapor Publik");
     await page.locator("#k-nim").fill("20269902");
-    await page.locator("#k-email").fill(email);
-    await page.locator("#k-wa").fill("081200000002");
 
     await page.getByRole("button", { name: /kirim laporan/i }).click();
 
     const tiket = page.locator(".code-value").first();
     await expect(tiket).toHaveText(/^KDL-/);
-    const nomorTiket = (await tiket.innerText()).trim();
-
-    await page.getByRole("button", { name: /cek status/i }).click();
-    const status = page.locator(".status-result");
-    await expect(status).toContainText(nomorTiket);
-    await expect(status).toContainText(/baru/i);
-    await expect(status).toContainText(deskripsi);
+    await expect(page.locator(".card-note", { hasText: /waktu pelaporan tercatat otomatis/i })).toBeVisible();
+    await expect(page.getByText(deskripsi)).toHaveCount(0);
+    await expect(page.locator("#k-urgensi")).toHaveCount(0);
+    await expect(page.locator("#s-tiket")).toHaveCount(0);
   });
 });

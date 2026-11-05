@@ -96,21 +96,19 @@ export class IssuesService {
     return issue;
   }
 
-  /** Laporan dari halaman publik: tanpa akun, dilacak lewat nomor tiket + email. */
+  /** Laporan dari halaman publik: tanpa akun, identitas cukup nama + NIM. */
   async createPublic(data: any) {
     const lab = await this.prisma.lab.findUnique({ where: { id: data.labId } });
     if (!lab || lab.deletedAt || lab.status !== "AKTIF") throw new BadRequestException("Lab tidak tersedia");
 
     const nomorTiket = await this.genTicket();
-    const urgensi = ["RENDAH", "SEDANG", "TINGGI"].includes(data.urgensi) ? data.urgensi : "SEDANG";
+    const urgensi = "SEDANG";
     const issue = await this.prisma.issue.create({
       data: {
         nomorTiket,
         pelaporId: null,
         namaPelapor: data.namaPelapor.trim(),
-        emailPelapor: data.emailPelapor.trim().toLowerCase(),
-        noWhatsapp: data.noWhatsapp?.trim() || null,
-        nim: data.nim?.trim() || null,
+        nim: data.nim.trim(),
         labId: data.labId,
         kategori: data.kategori,
         urgensi,
@@ -132,39 +130,7 @@ export class IssuesService {
       nomorTiket: issue.nomorTiket,
       status: issue.status,
       kategori: issue.kategori,
-      urgensi: issue.urgensi,
-      dueAt: issue.dueAt,
       createdAt: issue.createdAt,
-    };
-  }
-
-  /** Cek status tiket publik memakai nomor tiket + email pelapor. */
-  async findPublicStatus(nomorTiket: string, email: string) {
-    const issue = await this.prisma.issue.findUnique({
-      where: { nomorTiket: nomorTiket.trim().toUpperCase() },
-      include: {
-        lab: { select: { kode: true, nama: true } },
-        history: { orderBy: { createdAt: "asc" } },
-      },
-    });
-    if (!issue || issue.deletedAt) throw new NotFoundException("Tiket tidak ditemukan. Periksa kembali nomor tiket Anda.");
-    const emailCheck = (issue.emailPelapor || "").toLowerCase();
-    if (!email || emailCheck !== email.trim().toLowerCase()) {
-      throw new NotFoundException("Nomor tiket dan email tidak cocok.");
-    }
-    return {
-      nomorTiket: issue.nomorTiket,
-      status: issue.status,
-      kategori: issue.kategori,
-      urgensi: issue.urgensi,
-      deskripsi: issue.deskripsi,
-      lab: issue.lab,
-      namaPelapor: issue.namaPelapor,
-      dueAt: issue.dueAt,
-      resolvedAt: issue.resolvedAt,
-      createdAt: issue.createdAt,
-      updatedAt: issue.updatedAt,
-      history: issue.history.map((h) => ({ status: h.status, catatan: h.catatan, createdAt: h.createdAt })),
     };
   }
 
