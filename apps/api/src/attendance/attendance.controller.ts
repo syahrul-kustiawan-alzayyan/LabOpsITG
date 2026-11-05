@@ -72,19 +72,19 @@ export class AttendanceController {
   }
 
   @Get("admin/stats")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
   adminStats(@Req() req: Request) {
     return this.svc.adminStats();
   }
 
   @Get("admin/courses")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
   adminCourses(@Req() req: Request) {
     return this.svc.adminCourses();
   }
 
   @Get("admin/courses/:courseId")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
   adminCourseDetail(@Param("courseId") courseId: string) {
     return this.svc.adminCourseDetail(courseId);
   }
@@ -93,6 +93,12 @@ export class AttendanceController {
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
   instrukturCourses(@Req() req: Request) {
     return this.svc.instrukturCourses((req as any).user.sub);
+  }
+
+  @Get("instruktur/sessions")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  instrukturSessions(@Req() req: Request) {
+    return this.svc.instrukturSessions((req as any).user.sub);
   }
 
   @Get("recap/:sesiId")

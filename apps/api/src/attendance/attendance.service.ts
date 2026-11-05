@@ -108,7 +108,11 @@ export class AttendanceService {
     };
   }
 
-  async createSessionToken(sesiId: string, actorId: string) {
+  async createSessionToken(
+    sesiId: string,
+    actorId: string,
+    scope?: { tanggal?: Date; pertemuanKe?: number | null },
+  ) {
     const sesi = await this.prisma.schedule.findUnique({ where: { id: sesiId } });
     if (!sesi || sesi.deletedAt) throw new NotFoundException("Sesi tidak ditemukan");
     const now = new Date();
@@ -117,9 +121,22 @@ export class AttendanceService {
     await this.prisma.sessionQrToken.deleteMany({ where: { scheduleId: sesiId, expiresAt: { lt: now } } });
     const token = randomBytes(9).toString("base64url");
     const created = await this.prisma.sessionQrToken.create({
-      data: { scheduleId: sesiId, token, expiresAt, createdBy: actorId },
+      data: {
+        scheduleId: sesiId,
+        token,
+        expiresAt,
+        createdBy: actorId,
+        tanggal: scope?.tanggal ?? null,
+        pertemuanKe: scope?.pertemuanKe ?? null,
+      },
     });
-    await this.audit.log({ actorId, action: "CREATE_SESSION_QR", objectType: "Schedule", objectId: sesiId, newValue: { expiresAt } });
+    await this.audit.log({
+      actorId,
+      action: "CREATE_SESSION_QR",
+      objectType: "Schedule",
+      objectId: sesiId,
+      newValue: { expiresAt, tanggal: scope?.tanggal ?? null, pertemuanKe: scope?.pertemuanKe ?? null },
+    });
     return { token: created.token, expiresAt: created.expiresAt, sesi: { id: sesi.id, mataKuliah: sesi.mataKuliah, kelas: sesi.kelas } };
   }
 
@@ -437,8 +454,11 @@ export class AttendanceService {
       }
     }
 
-    // Buat token QR untuk sesi ini (berlaku 15 menit)
-    const tokenResult = await this.createSessionToken(sesi.id, actor.sub);
+    // Buat token QR untuk sesi ini (berlaku 15 menit), terikat pada tanggal + pertemuan
+    const tokenResult = await this.createSessionToken(sesi.id, actor.sub, {
+      tanggal: day,
+      pertemuanKe: body.pertemuanKe ?? null,
+    });
 
     return {
       ok: true,
@@ -485,10 +505,14 @@ export class AttendanceService {
     const s = token.schedule;
     if (s.deletedAt || s.status !== "AKTIF") throw new BadRequestException("Sesi praktikum tidak aktif");
 
-    const today = todayJakarta();
-    const day = startOfJakartaDay(token.createdAt);
+    const day = startOfJakartaDay(token.tanggal ?? token.createdAt);
     const atts = await this.prisma.attendance.findMany({
-      where: { sesiId: s.id, tanggal: day, deletedAt: null },
+      where: {
+        sesiId: s.id,
+        tanggal: day,
+        deletedAt: null,
+        ...(token.pertemuanKe != null ? { pertemuanKe: token.pertemuanKe } : {}),
+      },
       include: { user: { select: { id: true, nama: true, email: true, subRoles: true } } },
       orderBy: { user: { nama: "asc" } },
     });
@@ -530,6 +554,8 @@ export class AttendanceService {
       },
       scannedAt: now,
       scannedBy: actorId,
+      pertemuanKe: token.pertemuanKe ?? members[0]?.pertemuanKe ?? null,
+      materi: members.find((m) => m.materi)?.materi ?? null,
       members,
       totalHadir: members.filter((m) => m.status === "HADIR").length,
       totalMembers: members.length,
@@ -552,11 +578,15 @@ export class AttendanceService {
     const s = token.schedule;
     if (s.deletedAt || s.status !== "AKTIF") throw new BadRequestException("Sesi praktikum tidak aktif");
 
-    const today = todayJakarta();
-    const day = startOfJakartaDay(token.createdAt);
+    const day = startOfJakartaDay(token.tanggal ?? token.createdAt);
 
     const atts = await this.prisma.attendance.findMany({
-      where: { sesiId: s.id, tanggal: day, deletedAt: null },
+      where: {
+        sesiId: s.id,
+        tanggal: day,
+        deletedAt: null,
+        ...(token.pertemuanKe != null ? { pertemuanKe: token.pertemuanKe } : {}),
+      },
     });
 
     for (const a of atts) {
@@ -585,6 +615,7 @@ export class AttendanceService {
     });
     // Ambil daftar kelas unik dari jadwal aktif hari ini dan mendatang
     const today = todayJakarta();
+    const todayDow = dayOfWeekJakarta(today);
     const schedules = await this.prisma.schedule.findMany({
       where: {
         mataKuliahId: { in: courses.map((c) => c.id) },
@@ -592,12 +623,32 @@ export class AttendanceService {
         status: "AKTIF",
         tanggalSelesai: { gte: today },
       },
-      select: { mataKuliahId: true, kelas: true },
+      select: {
+        mataKuliahId: true,
+        kelas: true,
+        hari: true,
+        jamMulai: true,
+        jamSelesai: true,
+        tanggalMulai: true,
+        tanggalSelesai: true,
+        lab: { select: { kode: true } },
+      },
+      orderBy: { jamMulai: "asc" },
     });
     const kelasByCourse = new Map<string, Set<string>>();
+    const jadwalHariIniByCourse = new Map<string, Array<{ kelas: string; jamMulai: string; jamSelesai: string; labKode: string | null }>>();
     for (const s of schedules) {
       if (!kelasByCourse.has(s.mataKuliahId)) kelasByCourse.set(s.mataKuliahId, new Set());
       kelasByCourse.get(s.mataKuliahId)!.add(s.kelas);
+      if (s.hari === todayDow && s.tanggalMulai <= today && s.tanggalSelesai >= today) {
+        if (!jadwalHariIniByCourse.has(s.mataKuliahId)) jadwalHariIniByCourse.set(s.mataKuliahId, []);
+        jadwalHariIniByCourse.get(s.mataKuliahId)!.push({
+          kelas: s.kelas,
+          jamMulai: s.jamMulai,
+          jamSelesai: s.jamSelesai,
+          labKode: s.lab?.kode ?? null,
+        });
+      }
     }
     const results = await Promise.all(
       courses.map(async (c) => {
@@ -618,6 +669,7 @@ export class AttendanceService {
           instrukturId: c.instrukturId,
           asistenIds: c.asistenIds,
           kelas: [...(kelasByCourse.get(c.id) || [])].sort(),
+          jadwalHariIni: jadwalHariIniByCourse.get(c.id) || [],
           asistenCount: c.asistenIds.length,
           team: [
             c.instrukturId ? { id: c.instrukturId, ...userDetails[c.instrukturId], peran: "INSTRUKTUR" } : null,
@@ -627,6 +679,70 @@ export class AttendanceService {
       }),
     );
     return results;
+  }
+
+  /** Riwayat sesi absensi yang dibuat oleh instruktur (dikelompokkan per sesi + tanggal + pertemuan). */
+  async instrukturSessions(actorId: string, limit = 20) {
+    const rows = await this.prisma.attendance.findMany({
+      where: {
+        deletedAt: null,
+        qrTokenScanned: "INSTRUKTUR_SESSION",
+        sesi: { course: { instrukturId: actorId } },
+      },
+      include: {
+        sesi: {
+          select: {
+            id: true,
+            mataKuliah: true,
+            mataKuliahId: true,
+            kelas: true,
+            jamMulai: true,
+            jamSelesai: true,
+            lab: { select: { kode: true } },
+          },
+        },
+        user: { select: { id: true, nama: true, subRoles: true } },
+      },
+      orderBy: [{ tanggal: "desc" }, { pertemuanKe: "desc" }],
+    });
+
+    const groups = new Map<string, any>();
+    for (const row of rows) {
+      const tanggal = row.tanggal ? row.tanggal.toISOString().slice(0, 10) : null;
+      const key = `${row.sesiId}|${tanggal ?? "-"}|${row.pertemuanKe ?? 0}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          sesiId: row.sesiId,
+          mataKuliahId: row.sesi.mataKuliahId,
+          mataKuliah: row.sesi.mataKuliah,
+          kelas: row.sesi.kelas,
+          labKode: row.sesi.lab?.kode ?? null,
+          jamMulai: row.sesi.jamMulai,
+          jamSelesai: row.sesi.jamSelesai,
+          tanggal,
+          pertemuanKe: row.pertemuanKe,
+          materi: row.materi,
+          total: 0,
+          hadir: 0,
+          validated: 0,
+          members: [] as Array<{ id: string; nama: string; status: string; validated: boolean }>,
+        });
+      }
+      const group = groups.get(key);
+      group.total += 1;
+      if (row.status === "HADIR") group.hadir += 1;
+      if (row.validatedAt) group.validated += 1;
+      group.members.push({
+        id: row.user.id,
+        nama: row.user.nama,
+        status: row.status,
+        validated: !!row.validatedAt,
+      });
+      if (!group.materi && row.materi) group.materi = row.materi;
+    }
+
+    return [...groups.values()].slice(0, limit);
   }
 
   /** Admin: KPI absensi keseluruhan. */

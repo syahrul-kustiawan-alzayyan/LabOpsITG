@@ -329,12 +329,16 @@ model ClassEnrollment {
 }
 
 model SessionQrToken {
-  id         String   @id @default(cuid())
-  scheduleId String
-  token      String   @unique
-  expiresAt  DateTime
-  createdBy  String
-  createdAt  DateTime @default(now())
+  id          String    @id @default(cuid())
+  scheduleId  String
+  token       String    @unique
+  expiresAt   DateTime
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  /// Tanggal sesi absensi yang divalidasi (opsional; token lama tidak memilikinya).
+  tanggal     DateTime?
+  /// Pertemuan ke- yang divalidasi (opsional; token lama tidak memilikinya).
+  pertemuanKe Int?
 
   schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 

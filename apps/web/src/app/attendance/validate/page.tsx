@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 
@@ -61,17 +61,27 @@ export default function ValidateAttendancePage() {
     loadMe();
   }, [loadMe]);
 
-  // Jika datang dari scan QR (parameter ?token=), isi input otomatis
+  // Jika datang dari scan QR (parameter ?token=), langsung verifikasi otomatis
+  const autoScanned = useRef(false);
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || autoScanned.current) return;
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
-    if (token && !qrToken) {
-      setQrToken(token);
-      // Bersihkan parameter di URL agar tidak terlihat di address bar
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, [qrToken]);
+    if (!token) return;
+    autoScanned.current = true;
+    setQrToken(token);
+    // Bersihkan parameter di URL agar tidak terlihat di address bar
+    window.history.replaceState({}, "", window.location.pathname);
+
+    setLoading(true);
+    api<any>("/attendance/validate", { method: "POST", body: { qrToken: token } })
+      .then((data) => {
+        setResult(data);
+        setMsg({ type: "success", text: "QR code valid. Berikut detail sesi dan kehadiran tim pengajar." });
+      })
+      .catch((e: any) => setMsg({ type: "danger", text: e.message }))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function scan() {
     setMsg(null);

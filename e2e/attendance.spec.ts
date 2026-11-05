@@ -2,6 +2,36 @@ import { expect, test } from "@playwright/test";
 import { login } from "./helpers";
 
 test.describe("Absensi QR sesi", () => {
+  test("instruktur mencatat kehadiran tim dan membuat QR sesi", async ({ page }) => {
+    await login(page, "instruktur");
+    await page.goto("/attendance");
+    await expect(page.locator("h1.page-title")).toContainText(/absensi instruktur/i);
+    await expect(page.locator("#instruktur-course")).toBeVisible();
+
+    const warning = page.locator(".alert-warning", { hasText: /tidak ada jadwal/i });
+    const options = page.locator("#instruktur-course option");
+    const total = await options.count();
+    let picked = false;
+
+    for (let i = 1; i < total; i++) {
+      await page.locator("#instruktur-course").selectOption({ index: i });
+      await page.waitForTimeout(300);
+      if (!(await warning.isVisible().catch(() => false))) {
+        picked = true;
+        break;
+      }
+    }
+    test.skip(!picked, "Tidak ada mata kuliah instruktur yang berjadwal hari ini.");
+
+    await expect(page.locator("#instruktur-kelas")).not.toHaveValue("");
+    await expect(page.locator("#instruktur-pertemuan-ke")).not.toHaveValue("");
+    await page.locator("#instruktur-materi").fill("E2E absensi instruktur");
+    await page.getByRole("button", { name: /generate qr code/i }).click();
+
+    await expect(page.locator('img[alt="QR code absensi"]')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/qr code berhasil dibuat/i)).toBeVisible();
+  });
+
   test("token tidak dikenal ditolak dengan pesan", async ({ page }) => {
     await login(page, "koordinator");
     await page.goto("/attendance");

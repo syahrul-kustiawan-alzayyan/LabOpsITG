@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Icon } from "@/components/Icon";
-import { InstrukturSessionCreate } from "@/components/InstrukturSessionCreate";
-import { TeamAttendance } from "@/components/TeamAttendance";
+import InstrukturSessionCreate from "@/components/InstrukturSessionCreate";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -45,7 +44,10 @@ export default function AttendancePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [m, history] = await Promise.all([api<{ user: any }>("/auth/me"), api<any[]>("/attendance")]);
+      const [m, history] = await Promise.all([
+        api<{ user: any }>("/auth/me"),
+        api<any[]>("/attendance"),
+      ]);
       setMe(m.user);
       setList(history);
       if (["ADMIN_SYSTEM", "COORDINATOR", "LEADER"].includes(m.user.role)) {
@@ -123,24 +125,24 @@ export default function AttendancePage() {
     }
   }
 
+  // Instruktur: tampilkan dashboard instruktur penuh
+  if (isInstruktur) {
+    return <InstrukturSessionCreate />;
+  }
+
+  // Admin / Koordinator: tampilkan form scan QR + sesi hari ini
   return (
     <>
       <div className="page-header">
         <div>
           <h1 className="page-title">Absensi</h1>
           <p className="page-subtitle">
-            {isInstruktur
-              ? "Absen diri Anda dan asisten dosen untuk setiap sesi praktikum yang Anda ampu."
-              : isCoord
-                ? "Buka QR per sesi, kelola peserta, dan koreksi kehadiran dengan alasan tercatat."
-                : "Pindai token QR sesi praktikum yang sedang berlangsung."}
+            Buka QR per sesi, kelola peserta, dan koreksi kehadiran dengan alasan tercatat.
           </p>
         </div>
       </div>
 
       {msg && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
-
-      {isInstruktur && <InstrukturSessionCreate />}
 
       <div className="validate-link">
         <Link href="/attendance/validate" className="btn btn-secondary">
@@ -148,8 +150,6 @@ export default function AttendancePage() {
         </Link>
       </div>
 
-      {!isInstruktur && (
-        <>
       <div className="split-even">
         <div className="card">
           <h2 className="card-title">Scan kehadiran</h2>
@@ -313,8 +313,6 @@ export default function AttendancePage() {
           </div>
         </div>
       )}
-        </>
-      )}
 
       <div style={{ margin: "22px 0 10px", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h2 className="section-title" style={{ fontSize: 17 }}>
@@ -368,7 +366,9 @@ export default function AttendancePage() {
                     })}
                   </td>
                   <td>
-                    <span className={`badge ${STATUS_BADGE[a.status] || "badge-muted"}`}>{a.status.replace("_", " ").toLowerCase()}</span>
+                    <span className={`badge ${STATUS_BADGE[a.status] || "badge-muted"}`}>
+                      {a.status.replace("_", " ").toLowerCase()}
+                    </span>
                   </td>
                 </tr>
               ))
