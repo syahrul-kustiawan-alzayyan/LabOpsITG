@@ -24,6 +24,16 @@ async function main() {
     console.log("Seeded koordinator:", koordEmail, "/ koord123");
   }
 
+  const prodiEmail = "prodi@labops.local";
+  const existingP = await prisma.user.findUnique({ where: { email: prodiEmail } });
+  if (!existingP) {
+    const passwordHash = await bcrypt.hash("prodi123", 10);
+    await prisma.user.create({
+      data: { nama: "Pimpinan Prodi", email: prodiEmail, passwordHash, role: "LEADER", status: "ACTIVE" },
+    });
+    console.log("Seeded prodi:", prodiEmail, "/ prodi123");
+  }
+
   const labs = [
     { kode: "LAB-1", nama: "Lab Komputer 1", kapasitas: 40, lokasi: "Gedung A Lt.2", qrToken: "qr-lab1-token" },
     { kode: "LAB-2", nama: "Lab Komputer 2", kapasitas: 35, lokasi: "Gedung A Lt.3", qrToken: "qr-lab2-token" },

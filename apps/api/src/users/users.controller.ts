@@ -19,21 +19,31 @@ export class UsersController {
   findOne(@Param("id") id: string) { return this.users.findOne(id); }
 
   @Post()
-  @Roles("ADMIN_SYSTEM")
-  create(@Body() body: any, @Req() req: Request) { return this.users.create(body, (req as any).user?.sub); }
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  create(@Body() body: any, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.users.create(body, { id: user.sub, role: user.role });
+  }
 
   @Put(":id")
-  @Roles("ADMIN_SYSTEM")
-  update(@Param("id") id: string, @Body() body: any, @Req() req: Request) { return this.users.update(id, body, (req as any).user?.sub); }
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  update(@Param("id") id: string, @Body() body: any, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.users.update(id, body, { id: user.sub, role: user.role });
+  }
 
   @Patch(":id/deactivate")
-  @Roles("ADMIN_SYSTEM")
-  deactivate(@Param("id") id: string, @Req() req: Request) { return this.users.deactivate(id, (req as any).user?.sub); }
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  deactivate(@Param("id") id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.users.deactivate(id, { id: user.sub, role: user.role });
+  }
 
   @Patch(":id/reset-password")
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   resetPassword(@Param("id") id: string, @Body() body: { password: string }, @Req() req: Request) {
-    return this.users.resetPassword(id, body.password, (req as any).user?.sub);
+    const user = (req as any).user;
+    return this.users.resetPassword(id, body.password, { id: user.sub, role: user.role });
   }
 
   @Post("import")

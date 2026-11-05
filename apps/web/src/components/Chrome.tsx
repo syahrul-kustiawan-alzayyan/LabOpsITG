@@ -170,6 +170,11 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   const allowed = NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
   const groups = Array.from(new Set(allowed.map((n) => n.group)));
   const current = NAV.find((n) => n.href === pathname);
+  // Jika beberapa menu berbagi prefix (mis. /attendance dan /attendance/admin),
+  // hanya menu dengan prefix terpanjang yang ditandai aktif.
+  const activeHref = allowed
+    .filter((n) => pathname === n.href || pathname.startsWith(n.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <div className="app-shell">
@@ -191,7 +196,7 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
               {allowed
                 .filter((n) => n.group === group)
                 .map((n) => {
-                  const active = pathname === n.href || pathname.startsWith(n.href + "/");
+                  const active = n.href === activeHref;
                   return (
                     <Link
                       key={n.href}

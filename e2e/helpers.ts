@@ -6,6 +6,7 @@ export const ACCOUNTS = {
   dosen: { email: "drdedekurniadimkom@labops.local", password: "dosen123" },
   mahasiswa: { email: "mhs01@labops.local", password: "mhs123" },
   instruktur: { email: "instruktur01@labops.local", password: "instruktur123" },
+  prodi: { email: "prodi@labops.local", password: "prodi123" },
 } as const;
 
 export type Role = keyof typeof ACCOUNTS;
