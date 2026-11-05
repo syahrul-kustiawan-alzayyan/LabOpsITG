@@ -14,7 +14,7 @@ export default function StaffPage() {
   const [me, setMe] = useState<any>(null);
   const [msg, setMsg] = useState<{ type: string; text: string } | null>(null);
   const [search, setSearch] = useState("");
-  const [filterCourse, setFilterCourse] = useState("");
+  const [filterStaff, setFilterStaff] = useState("");
   const [editSesi, setEditSesi] = useState<any>(null);
   const [pengampuId, setPengampuId] = useState("");
   const [asistenIds, setAsistenIds] = useState<string[]>([]);
@@ -50,42 +50,78 @@ export default function StaffPage() {
     load();
   }, [load]);
 
-  // Build per-course instructor/asisten summary from course data (link from recruitment)
-  const courseStaff = useMemo(() => {
+  /** Build instructor-centric structure:
+   * instruktur -> [courses they handle] -> each course -> assistants
+   */
+  const staffByInstruktur = useMemo(() => {
     const map: Record<string, {
-      kode: string;
+      id: string;
       nama: string;
-      instruktur: { id: string; nama: string; email: string } | null;
-      asisten: { id: string; nama: string; email: string }[];
-      schedules: number;
+      email: string;
+      courses: Array<{
+        id: string;
+        kode: string;
+        nama: string;
+        schedules: number;
+        asisten: { id: string; nama: string; email: string }[];
+      }>;
     }> = {};
+
     for (const c of courses) {
-      map[c.id] = {
+      const inst = c.instruktur;
+      if (!inst) continue; // skip courses without an assigned instructor
+
+      const key = inst.id;
+      if (!map[key]) {
+        map[key] = {
+          id: inst.id,
+          nama: inst.nama,
+          email: inst.email,
+          courses: [],
+        };
+      }
+
+      map[key].courses.push({
+        id: c.id,
         kode: c.kode,
         nama: c.nama,
-        instruktur: c.instruktur || null,
-        asisten: (c.asisten || []).map((a: any) => ({ id: a.id, nama: a.nama, email: a.email })),
         schedules: c.schedules?.filter((s: any) => !s.deletedAt).length || 0,
-      };
+        asisten: (c.asisten || []).map((a: any) => ({ id: a.id, nama: a.nama, email: a.email })),
+      });
     }
-    return Object.values(map).sort((a, b) => a.kode.localeCompare(b.kode));
+
+    return Object.values(map).sort((a, b) => a.nama.localeCompare(b.nama));
   }, [courses]);
 
-  const instructors = users.filter((u) => u.subRoles?.includes("INSTRUKTUR") || u.role === "INSTRUKTUR" || ["COORDINATOR", "ADMIN_SYSTEM"].includes(u.role));
-  const assistants = users.filter((u) => u.subRoles?.includes("ASISTEN_DOSEN") || u.role === "ASISTEN_DOSEN" || u.subRoles?.includes("INSTRUKTUR") || ["COORDINATOR", "ADMIN_SYSTEM"].includes(u.role));
+  const flatStaff = useMemo(() => {
+    // Flatten to (instruktur, course) rows for search/filter
+    const rows: Array<{ instruktur: any; course: any }> = [];
+    for (const inst of staffByInstruktur) {
+      for (const c of inst.courses) {
+        rows.push({ instruktur: inst, course: c });
+      }
+    }
+    return rows;
+  }, [staffByInstruktur]);
 
-  const visibleCourses = useMemo(() => {
+  const visibleStaff = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q && !filterCourse) return courseStaff;
-    return courseStaff.filter((c) => {
-      if (filterCourse && c.kode !== filterCourse && c.nama !== filterCourse) return false;
+    if (!q && !filterStaff) return staffByInstruktur;
+    return staffByInstruktur.filter((inst) => {
+      if (filterStaff && inst.id !== filterStaff && inst.nama !== filterStaff) return false;
       if (!q) return true;
-      return c.kode?.toLowerCase().includes(q) || c.nama?.toLowerCase().includes(q);
+      const matchInstruktur = inst.nama.toLowerCase().includes(q) || inst.email.toLowerCase().includes(q);
+      const matchCourse = inst.courses.some(
+        (c) => c.kode.toLowerCase().includes(q) || c.nama.toLowerCase().includes(q)
+      );
+      const matchAsisten = inst.courses.some((c) =>
+        c.asisten.some((a) => a.nama.toLowerCase().includes(q))
+      );
+      return matchInstruktur || matchCourse || matchAsisten;
     });
-  }, [courseStaff, search, filterCourse]);
+  }, [staffByInstruktur, search, filterStaff]);
 
-  // Schedule-based view for editing assignments
-  const HARI_MAP = HARI;
+  // Schedule-based view for editing assignments (koordinator only)
   const groupedSchedules: Record<number, any[]> = {};
   for (const s of schedules) {
     if (!groupedSchedules[s.hari]) groupedSchedules[s.hari] = [];
@@ -95,7 +131,7 @@ export default function StaffPage() {
   const filteredSchedules = useMemo(() => {
     const q = search.trim().toLowerCase();
     return schedules.filter((s) => {
-      if (filterCourse && s.mataKuliah !== filterCourse) return false;
+      if (filterStaff && s.pengampuId !== filterStaff) return false;
       if (!q) return true;
       return (
         s.mataKuliah?.toLowerCase().includes(q) ||
@@ -104,7 +140,7 @@ export default function StaffPage() {
         (s.asisten || []).some((a: any) => a.nama?.toLowerCase().includes(q))
       );
     });
-  }, [schedules, search, filterCourse]);
+  }, [schedules, search, filterStaff]);
 
   const unassigned = filteredSchedules.filter((s) => !s.pengampu?.nama).length;
 
@@ -133,6 +169,9 @@ export default function StaffPage() {
     }
   }
 
+  const instructors = users.filter((u) => u.subRoles?.includes("INSTRUKTUR") || u.role === "INSTRUKTUR" || ["COORDINATOR", "ADMIN_SYSTEM"].includes(u.role));
+  const assistants = users.filter((u) => u.subRoles?.includes("ASISTEN_DOSEN") || u.role === "ASISTEN_DOSEN" || u.subRoles?.includes("INSTRUKTUR") || ["COORDINATOR", "ADMIN_SYSTEM"].includes(u.role));
+
   return (
     <>
       <div className="page-header">
@@ -142,7 +181,7 @@ export default function StaffPage() {
           </p>
           <h1 className="page-title">Selamat datang, {greeting}</h1>
           <p className="page-subtitle">
-            Data pengampu dan asisten dosen per mata kuliah. Data ini terisi dari hasil rekrutmen
+            Data pengampu dan asisten dosen per mata kuliah yang diampu. Data ini terisi dari hasil rekrutmen
             yang disetujui koordinator dan dapat ditugaskan ke jadwal praktikum.
           </p>
         </div>
@@ -169,24 +208,24 @@ export default function StaffPage() {
       <div className="ops-strip reveal">
         <div className="ops-stat">
           <span className="ops-stat-label">
-            <Icon name="book" size={14} /> Mata kuliah
+            <Icon name="staff" size={14} /> Instruktur pengampu
           </span>
-          <span className="ops-stat-value">{courses.length}</span>
-          <span className="ops-stat-note">terdaftar di sistem</span>
+          <span className="ops-stat-value">{staffByInstruktur.length}</span>
+          <span className="ops-stat-note">memegang mata kuliah</span>
         </div>
         <div className="ops-stat">
           <span className="ops-stat-label">
-            <Icon name="staff" size={14} /> Instruktur pengampu
+            <Icon name="book" size={14} /> Mata kuliah diampu
           </span>
-          <span className="ops-stat-value">{courseStaff.filter((c) => c.instruktur).length}</span>
+          <span className="ops-stat-value">{flatStaff.length}</span>
           <span className="ops-stat-note">dengan instruktur ditetapkan</span>
         </div>
         <div className="ops-stat">
           <span className="ops-stat-label">
             <Icon name="users" size={14} /> Asisten dosen
           </span>
-          <span className="ops-stat-value">{courseStaff.reduce((sum, c) => sum + c.asisten.length, 0)}</span>
-          <span className="ops-stat-note">seluruh mata kuliah</span>
+          <span className="ops-stat-value">{flatStaff.reduce((sum, r) => sum + r.course.asisten.length, 0)}</span>
+          <span className="ops-stat-note">seluruh matkul yang diampu</span>
         </div>
         <div className={`ops-stat ${unassigned ? "is-alert" : ""}`}>
           <span className="ops-stat-label">
@@ -197,78 +236,103 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* Per-course staff table */}
+      {/* Instruktur-centric table */}
       <div className="card card-flush reveal reveal-2" style={{ marginBottom: 22 }}>
         <div className="card-head">
           <div>
-            <h2 className="card-title">Instruktur &amp; Asdos per Mata Kuliah</h2>
-            <p className="card-note">Data diisi otomatis saat koordinator menyetujui lamaran rekrutmen.</p>
+            <h2 className="card-title">Instruktur &amp; Mata Kuliah yang Diampu</h2>
+            <p className="card-note">Setiap instruktur dengan mata kuliah dan asisten dosen per mata kuliahnya.</p>
           </div>
           <div className="field" style={{ minWidth: 260, marginLeft: "auto" }}>
-            <label htmlFor="sc-search">Cari mata kuliah</label>
-            <input id="sc-search" className="input" placeholder="Kode atau nama…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <label htmlFor="sc-search">Cari instruktur atau matkul</label>
+            <input id="sc-search" className="input" placeholder="Nama, kode, atau matkul…" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         </div>
         <div className="table-wrap" style={{ border: "none", borderRadius: 0 }}>
           <table className="table">
             <thead>
               <tr>
-                <th>Kode</th>
-                <th>Mata kuliah</th>
                 <th>Instruktur pengampu</th>
-                <th>Asisten dosen</th>
+                <th>Mata kuliah yang diampu</th>
+                <th>Asisten dosen per matkul</th>
                 <th>Sesi jadwal</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={4}>
                     <div className="skeleton" style={{ height: 40 }} />
                   </td>
                 </tr>
-              ) : visibleCourses.length === 0 ? (
+              ) : visibleStaff.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={4}>
                     <div className="empty" style={{ padding: 24 }}>
                       <Icon name="users" size={24} />
-                      <p className="empty-title">Belum ada data instruktur/asdos</p>
+                      <p className="empty-title">Belum ada instruktur dengan matkul</p>
                       <p className="empty-text">
-                        Buka lowongan rekrutmen dan setujui calon instruktur/asdos agar muncul di sini.
+                        Setujui lamaran rekrutmen instruktur agar muncul di sini.
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                visibleCourses.map((c) => (
-                  <tr key={c.kode}>
-                    <td style={{ fontFamily: "var(--font-mono)", fontWeight: 550 }}>{c.kode}</td>
-                    <td style={{ fontWeight: 500 }}>{c.nama}</td>
-                    <td>
-                      {c.instruktur ? (
-                        <>
-                          <div style={{ fontWeight: 550 }}>{c.instruktur.nama}</div>
-                          <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>{c.instruktur.email}</div>
-                        </>
-                      ) : (
-                        <span style={{ color: "var(--danger)" }}>Belum ditetapkan</span>
-                      )}
+                visibleStaff.map((inst) => (
+                  <tr key={inst.id} style={{ verticalAlign: "top" }}>
+                    <td style={{ fontWeight: 550 }}>
+                      <div>{inst.nama}</div>
+                      <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>{inst.email}</div>
                     </td>
                     <td>
-                      {c.asisten.length > 0 ? (
+                      {inst.courses.length === 0 ? (
+                        <span style={{ color: "var(--ink-soft)" }}>—</span>
+                      ) : (
                         <>
-                          {c.asisten.map((a) => (
-                            <div key={a.id} style={{ fontSize: 14, marginBottom: 2 }}>
-                              {a.nama}
+                          {inst.courses.map((c) => (
+                            <div key={c.id} style={{ marginBottom: 6 }}>
+                              <div style={{ fontWeight: 550, fontFamily: "var(--font-mono)" }}>{c.kode}</div>
+                              <div style={{ fontSize: 13.5, color: "var(--ink)" }}>{c.nama}</div>
+                              <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 2 }}>
+                                {c.schedules} sesi jadwal
+                              </div>
                             </div>
                           ))}
-                          <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>{c.asisten.length} orang</div>
                         </>
-                      ) : (
-                        <span style={{ color: "var(--ink-soft)" }}>—</span>
                       )}
                     </td>
-                    <td className="num">{c.schedules}</td>
+                    <td>
+                      {inst.courses.length === 0 ? (
+                        <span style={{ color: "var(--ink-soft)" }}>—</span>
+                      ) : (
+                        <>
+                          {inst.courses.map((c) => (
+                            <div key={c.id} style={{ marginBottom: 6 }}>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{c.kode}</div>
+                              {c.asisten.length > 0 ? (
+                                <>
+                                  {c.asisten.map((a) => (
+                                    <div key={a.id} style={{ fontSize: 13, marginBottom: 2 }}>
+                                      {a.nama}
+                                    </div>
+                                  ))}
+                                  <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 2 }}>
+                                    {c.asisten.length} asisten
+                                  </div>
+                                </>
+                              ) : (
+                                <span style={{ color: "var(--ink-soft)", fontSize: 13 }}>
+                                  Belum ada asisten
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </td>
+                    <td className="num">
+                      {inst.courses.reduce((sum, c) => sum + c.schedules, 0)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -292,13 +356,11 @@ export default function StaffPage() {
                 </div>
               </div>
               <div className="field" style={{ minWidth: 240 }}>
-                <label htmlFor="st-course">Mata kuliah</label>
-                <select id="st-course" value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
-                  <option value="">Semua mata kuliah</option>
-                  {courseStaff.map((c) => (
-                    <option key={c.kode} value={c.kode}>
-                      {c.kode} — {c.nama}
-                    </option>
+                <label htmlFor="st-instruktur">Instruktur</label>
+                <select id="st-instruktur" value={filterStaff} onChange={(e) => setFilterStaff(e.target.value)}>
+                  <option value="">Semua instruktur</option>
+                  {staffByInstruktur.map((i) => (
+                    <option key={i.id} value={i.id}>{i.nama}</option>
                   ))}
                 </select>
               </div>
@@ -329,7 +391,7 @@ export default function StaffPage() {
                       <div className="empty">
                         <Icon name="users" size={24} />
                         <p className="empty-title">Tidak ada sesi yang cocok</p>
-                        <p className="empty-text">Ubah kata kunci atau filter mata kuliah.</p>
+                        <p className="empty-text">Ubah kata kunci atau filter instruktur.</p>
                       </div>
                     </td>
                   </tr>
