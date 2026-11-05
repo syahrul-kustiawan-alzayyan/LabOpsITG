@@ -15,15 +15,13 @@ test.describe("Kontrol akses berbasis peran", () => {
     await expect(page).toHaveURL(/\/dashboard\?denied=1/);
   });
 
-  test("koordinator dapat membuka jejak audit dan manajemen pengguna", async ({ page }) => {
+  test("koordinator ditolak dari jejak audit dan manajemen pengguna", async ({ page }) => {
     await login(page, "koordinator");
     await page.goto("/audit");
-    await expect(page.locator("h1.page-title")).toContainText(/jejak audit/i);
-    await expect(page.locator(".table")).toBeVisible();
+    await expect(page).toHaveURL(/\/dashboard\?denied=1/);
 
     await page.goto("/users");
-    await expect(page.locator("h1.page-title")).toContainText(/pengguna/i);
-    await expect(page.getByRole("button", { name: /tambah pengguna/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/dashboard\?denied=1/);
   });
 
   test("prodi dapat membuka rekap absensi tetapi tidak manajemen pengguna", async ({ page }) => {

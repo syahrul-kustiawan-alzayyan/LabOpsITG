@@ -33,7 +33,7 @@ test.describe("Absensi QR sesi", () => {
   });
 
   test("token tidak dikenal ditolak dengan pesan", async ({ page }) => {
-    await login(page, "koordinator");
+    await login(page, "admin");
     await page.goto("/attendance");
 
     await page.locator("#qr").fill("token-palsu-e2e-123");
@@ -45,7 +45,7 @@ test.describe("Absensi QR sesi", () => {
   });
 
   test("koordinator membuat token QR sesi dan membuka daftar peserta", async ({ page }) => {
-    await login(page, "koordinator");
+    await login(page, "admin");
     const todayResp = page
       .waitForResponse((r) => r.url().includes("/reports/today") && r.status() === 200, { timeout: 15_000 })
       .catch(() => null);

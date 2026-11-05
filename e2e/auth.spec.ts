@@ -23,11 +23,29 @@ test.describe("Autentikasi", () => {
     await logout(page);
   });
 
-  test("koordinator melihat menu manajemen dan pengguna", async ({ page }) => {
+  test("koordinator hanya melihat enam menu utama di dasbor koordinator", async ({ page }) => {
     await login(page, "koordinator");
-    await expect(page.locator(".rail")).toContainText("Lab");
-    await expect(page.locator(".rail")).toContainText("Jejak Audit");
-    await expect(page.locator(".rail")).toContainText("Pengguna");
+
+    await expect(page).toHaveURL(/\/koordinator/);
+    await expect(page.locator(".rail")).toContainText("Dasbor Koordinator");
+
+    for (const label of [
+      "Mata Kuliah",
+      "Jadwal",
+      "Peminjaman",
+      "Kendala",
+      "Inventaris",
+      "Rekrutmen",
+    ]) {
+      await expect(page.locator(".rail")).toContainText(label);
+    }
+
+    // Menu luar cakupan koordinator tidak boleh muncul di rail.
+    await expect(page.locator('.rail-link[href="/labs"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/audit"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/users"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/attendance"]')).toHaveCount(0);
+
     await logout(page);
   });
 

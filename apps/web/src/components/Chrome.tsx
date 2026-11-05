@@ -18,21 +18,21 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dasbor", icon: "dashboard", roles: ["ADMIN_SYSTEM", "USER", "LEADER"], group: "Operasional" },
-  { href: "/koordinator", label: "Dasbor Koordinator", icon: "dashboard", roles: ["COORDINATOR"], group: "Operasional" },
+  { href: "/koordinator", label: "Dasbor Koordinator", icon: "dashboard", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Operasional" },
   { href: "/schedules", label: "Jadwal", icon: "calendar", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
   { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
   { href: "/issues", label: "Kendala", icon: "issue", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
-  { href: "/attendance", label: "Absensi", icon: "attendance", roles: null, group: "Operasional" },
-  { href: "/attendance/admin", label: "Admin Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Manajemen" },
+  { href: "/attendance", label: "Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "USER", "LEADER"], group: "Operasional" },
+  { href: "/attendance/admin", label: "Admin Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Manajemen" },
   { href: "/courses", label: "Mata Kuliah", icon: "book", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen", coordGroup: "Menu Koordinator" },
-  { href: "/labs", label: "Lab", icon: "lab", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen" },
+  { href: "/labs", label: "Lab", icon: "lab", roles: ["ADMIN_SYSTEM"], group: "Manajemen" },
   { href: "/inventory", label: "Inventaris", icon: "inventory", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
   { href: "/staff", label: "Instruktur & Asisten", icon: "staff", roles: null, group: "Manajemen" },
   { href: "/recruitment", label: "Rekrutmen", icon: "recruitment", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
-  { href: "/reports", label: "Laporan", icon: "report", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Wawasan" },
-  { href: "/prodi", label: "Prodi", icon: "prodi", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Wawasan" },
-  { href: "/audit", label: "Jejak Audit", icon: "shield", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Wawasan" },
-  { href: "/users", label: "Pengguna", icon: "users", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Wawasan" },
+  { href: "/reports", label: "Laporan", icon: "report", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Wawasan" },
+  { href: "/prodi", label: "Prodi", icon: "prodi", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Wawasan" },
+  { href: "/audit", label: "Jejak Audit", icon: "shield", roles: ["ADMIN_SYSTEM"], group: "Wawasan" },
+  { href: "/users", label: "Pengguna", icon: "users", roles: ["ADMIN_SYSTEM"], group: "Wawasan" },
 ];
 
 const MOBILE = ["/dashboard", "/schedules", "/bookings", "/issues", "/attendance"];
@@ -176,14 +176,17 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   if (isPublic) return <>{children}</>;
 
   const role = user?.role;
+  // Koordinator terbatas hanya pada 6 menu utama + dasbor koordinator itu sendiri.
+  const allowed = role === "COORDINATOR"
+    ? NAV.filter((n) => n.href === "/koordinator" || n.coordGroup === "Menu Koordinator")
+    : NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
   const groupOf = (n: NavItem) => (role === "COORDINATOR" && n.coordGroup ? n.coordGroup : n.group);
-  const allowed = NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
   const groups = Array.from(new Set(allowed.map(groupOf)));
   const current = NAV.find((n) => n.href === pathname);
   const homeHref = role === "COORDINATOR" ? "/koordinator" : "/dashboard";
   const mobileHrefs =
     role === "COORDINATOR"
-      ? ["/koordinator", "/schedules", "/bookings", "/issues", "/attendance"]
+      ? ["/koordinator", "/schedules", "/bookings", "/issues", "/inventory", "/recruitment"]
       : MOBILE;
   // Jika beberapa menu berbagi prefix (mis. /attendance dan /attendance/admin),
   // hanya menu dengan prefix terpanjang yang ditandai aktif.

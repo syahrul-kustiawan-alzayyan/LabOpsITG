@@ -5,14 +5,14 @@ const PUBLIC_PATHS = ["/", "/login", "/manifest.webmanifest", "/favicon.ico", "/
 
 const ROLE_RULES: { prefix: string; roles: string[] }[] = [
   { prefix: "/koordinator", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
-  { prefix: "/attendance/admin", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"] },
-  { prefix: "/attendance", roles: ["ADMIN_SYSTEM", "COORDINATOR", "USER"] },
   { prefix: "/courses", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
-  { prefix: "/users", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
-  { prefix: "/audit", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
-  { prefix: "/labs", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
-  { prefix: "/reports", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"] },
-  { prefix: "/prodi", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"] },
+  { prefix: "/attendance/admin", roles: ["ADMIN_SYSTEM", "LEADER"] },
+  { prefix: "/attendance", roles: ["ADMIN_SYSTEM", "USER"] },
+  { prefix: "/users", roles: ["ADMIN_SYSTEM"] },
+  { prefix: "/audit", roles: ["ADMIN_SYSTEM"] },
+  { prefix: "/labs", roles: ["ADMIN_SYSTEM"] },
+  { prefix: "/reports", roles: ["ADMIN_SYSTEM", "LEADER"] },
+  { prefix: "/prodi", roles: ["ADMIN_SYSTEM", "LEADER"] },
 ];
 
 function decodeRole(token?: string): string | null {
