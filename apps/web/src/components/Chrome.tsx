@@ -180,7 +180,13 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   // Koordinator terbatas hanya pada 6 menu utama + dasbor koordinator itu sendiri.
   const allowed = role === "COORDINATOR"
     ? NAV.filter((n) => n.href === "/koordinator" || n.coordGroup === "Menu Koordinator")
-    : NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
+    : NAV.filter((n) => {
+        if (!n.roles) return true;
+        if (role && n.roles.includes(role)) return true;
+        // Akun instruktur/asdos memiliki role "USER" dengan subRole INSTRUKTUR/ASISTEN_DOSEN.
+        if (user?.subRoles?.some((sr: string) => n.roles.includes(sr))) return true;
+        return false;
+      });
   const groupOf = (n: NavItem) => (role === "COORDINATOR" && n.coordGroup ? n.coordGroup : n.group);
   const groups = Array.from(new Set(allowed.map(groupOf)));
   const current = NAV.find((n) => n.href === pathname);

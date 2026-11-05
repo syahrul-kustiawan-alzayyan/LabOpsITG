@@ -31,6 +31,7 @@ export default function SchedulesPage() {
   const [filterLab, setFilterLab] = useState("");
   const [myOnly, setMyOnly] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [isInstruktur, setIsInstruktur] = useState(false);
   const [day, setDay] = useState<number>(() => {
     const now = new Date().getDay();
     return now === 0 || now === 6 ? 1 : now;
@@ -45,6 +46,12 @@ export default function SchedulesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const meRes = await api<{ user: any }>("/auth/me");
+      setMe(meRes.user);
+      if (!isInstruktur && meRes.user?.subRoles?.includes("INSTRUKTUR")) {
+        setIsInstruktur(true);
+        setMyOnly(true);
+      }
       const params = new URLSearchParams();
       if (filterLab) params.set("labId", filterLab);
       const [sched, labList] = await Promise.all([
@@ -58,7 +65,7 @@ export default function SchedulesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterLab, myOnly]);
+  }, [filterLab, myOnly, isInstruktur]);
 
   useEffect(() => {
     api<{ user: any }>("/auth/me").then((d) => setMe(d.user)).catch(() => {});
