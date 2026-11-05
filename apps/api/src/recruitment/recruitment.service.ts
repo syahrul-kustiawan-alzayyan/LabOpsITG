@@ -205,6 +205,50 @@ export class RecruitmentService {
       if (user && !user.subRoles.includes(subRole as any)) {
         await this.prisma.user.update({ where: { id: app.pelamarId }, data: { subRoles: { push: subRole as any } } });
       }
+      // link user ke mata kuliah sesuai tipe rekrutmen
+      const courseName = app.period?.mataKuliah || app.mataKuliahDilamar;
+      if (courseName) {
+        const course = await this.prisma.mataKuliah.findFirst({
+          where: { nama: courseName, deletedAt: null },
+        });
+        if (course) {
+          if (tipe === "INSTRUKTUR") {
+            await this.prisma.mataKuliah.update({
+              where: { id: course.id },
+              data: { instrukturId: app.pelamarId },
+            });
+          } else if (tipe === "ASISTEN_DOSEN") {
+            await this.prisma.mataKuliah.update({
+              where: { id: course.id },
+              data: { asistenIds: { push: app.pelamarId } },
+            });
+          }
+          // sinkronkan ke schedule aktif milik course tersebut
+          const schedules = await this.prisma.schedule.findMany({
+            where: { mataKuliahId: course.id, deletedAt: null, status: "AKTIF" },
+          });
+          if (tipe === "INSTRUKTUR") {
+            for (const s of schedules) {
+              if (!s.pengampuId) {
+                await this.prisma.schedule.update({
+                  where: { id: s.id },
+                  data: { pengampuId: app.pelamarId },
+                });
+              }
+            }
+          } else if (tipe === "ASISTEN_DOSEN") {
+            for (const s of schedules) {
+              const existing = s.asistenIds || [];
+              if (!existing.includes(app.pelamarId)) {
+                await this.prisma.schedule.update({
+                  where: { id: s.id },
+                  data: { asistenIds: { push: app.pelamarId } },
+                });
+              }
+            }
+          }
+        }
+      }
     }
     return updated;
   }

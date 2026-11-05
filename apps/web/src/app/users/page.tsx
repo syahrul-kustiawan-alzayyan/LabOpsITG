@@ -10,18 +10,20 @@ const ROLES = [
   { value: "COORDINATOR", label: "Koordinator" },
   { value: "LEADER", label: "Pimpinan" },
   { value: "ADMIN_SYSTEM", label: "Admin sistem" },
+  { value: "INSTRUKTUR", label: "Instruktur" },
+  { value: "ASISTEN_DOSEN", label: "Asisten Dosen" },
 ];
 const SUB_ROLES = [
   { value: "DOSEN", label: "Dosen" },
   { value: "MAHASISWA", label: "Mahasiswa" },
-  { value: "INSTRUKTUR", label: "Instruktur" },
-  { value: "ASISTEN_DOSEN", label: "Asisten dosen" },
 ];
 const ROLE_BADGE: Record<string, string> = {
   ADMIN_SYSTEM: "badge-danger",
   COORDINATOR: "badge-info",
   LEADER: "badge-success",
   USER: "badge-muted",
+  INSTRUKTUR: "badge-warning",
+  ASISTEN_DOSEN: "badge-warning",
 };
 
 const EMPTY = { nama: "", email: "", password: "", role: "USER", subRoles: ["MAHASISWA"] as string[] };
@@ -79,7 +81,12 @@ export default function UsersPage() {
     e.preventDefault();
     setMsg(null);
     try {
-      await api("/users", { method: "POST", body: form });
+      // Jika role adalah INSTRUKTUR/ASISTEN_DOSEN, subRoles dikosongkan (role langsung)
+      const body = { ...form };
+      if (body.role === "INSTRUKTUR" || body.role === "ASISTEN_DOSEN") {
+        body.subRoles = [];
+      }
+      await api("/users", { method: "POST", body });
       setMsg({ type: "success", text: `Akun ${form.email} dibuat.` });
       setForm(EMPTY);
       setShowForm(false);
@@ -165,6 +172,11 @@ export default function UsersPage() {
           <span className="ops-stat-value">{counts.USER || 0}</span>
           <span className="ops-stat-note">dosen & mahasiswa</span>
         </div>
+        <div className="ops-stat">
+          <span className="ops-stat-label">Instruktur &amp; asdos</span>
+          <span className="ops-stat-value">{(counts.INSTRUKTUR || 0) + (counts.ASISTEN_DOSEN || 0)}</span>
+          <span className="ops-stat-note">peran langsung</span>
+        </div>
       </div>
 
       {showForm && (
@@ -202,19 +214,24 @@ export default function UsersPage() {
             </div>
             <div className="field">
               <label>Sub-peran</label>
-              <div className="chip-row">
-                {SUB_ROLES.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    className={`chip ${form.subRoles.includes(s.value) ? "is-active" : ""}`}
-                    onClick={() => toggleSubRole(s.value)}
-                    aria-pressed={form.subRoles.includes(s.value)}
-                  >
-                    {form.subRoles.includes(s.value) && <Icon name="check" size={12} />} {s.label}
-                  </button>
-                ))}
-              </div>
+              <p className="card-note" style={{ margin: "4px 0 0", fontSize: 13, color: "var(--ink-soft)" }}>
+                Kosongkan jika peran sistem adalah Instruktur atau Asisten Dosen.
+              </p>
+              {form.role !== "INSTRUKTUR" && form.role !== "ASISTEN_DOSEN" && (
+                <div className="chip-row">
+                  {SUB_ROLES.map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      className={`chip ${form.subRoles.includes(s.value) ? "is-active" : ""}`}
+                      onClick={() => toggleSubRole(s.value)}
+                      aria-pressed={form.subRoles.includes(s.value)}
+                    >
+                      {form.subRoles.includes(s.value) && <Icon name="check" size={12} />} {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <button className="btn" type="submit">
