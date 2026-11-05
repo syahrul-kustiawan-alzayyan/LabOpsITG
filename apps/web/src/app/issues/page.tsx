@@ -110,7 +110,8 @@ export default function IssuesPage() {
         i.nomorTiket?.toLowerCase().includes(q) ||
         i.deskripsi?.toLowerCase().includes(q) ||
         i.lab?.kode?.toLowerCase().includes(q) ||
-        i.pelapor?.nama?.toLowerCase().includes(q),
+        i.pelapor?.nama?.toLowerCase().includes(q) ||
+        i.namaPelapor?.toLowerCase().includes(q),
     );
   }, [issues, search]);
 
@@ -463,7 +464,10 @@ export default function IssuesPage() {
                       <button className="btn btn-ghost btn-sm" style={{ paddingLeft: 0, fontFamily: "var(--font-mono)" }} onClick={() => openDetail(iss.id)}>
                         {iss.nomorTiket}
                       </button>
-                      <div style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>{iss.pelapor?.nama}</div>
+                      <div style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>
+                        {iss.pelapor?.nama || iss.namaPelapor || "-"}
+                        {!iss.pelapor && iss.namaPelapor ? " · Publik" : ""}
+                      </div>
                     </td>
                     <td style={{ maxWidth: 340 }}>
                       <div style={{ fontWeight: 500 }}>{iss.deskripsi}</div>
@@ -551,8 +555,15 @@ export default function IssuesPage() {
                     {detail.nomorTiket} · {detail.deskripsi}
                   </h3>
                   <p className="card-note">
-                    {detail.lab?.kode} · {detail.pelapor?.nama} · dibuat {fmtDate(detail.createdAt)} · tenggat {fmtDate(detail.dueAt)}
+                    {detail.lab?.kode} · {detail.pelapor?.nama || detail.namaPelapor || "Pelapor publik"} · dibuat {fmtDate(detail.createdAt)} · tenggat {fmtDate(detail.dueAt)}
                   </p>
+                  {!detail.pelapor && detail.namaPelapor && (
+                    <p className="card-note">
+                      Kontak publik: {detail.emailPelapor || "-"}
+                      {detail.noWhatsapp ? ` · ${detail.noWhatsapp}` : ""}
+                      {detail.nim ? ` · NIM ${detail.nim}` : ""}
+                    </p>
+                  )}
                 </div>
                 <button className="icon-btn" onClick={() => setDetail(null)} aria-label="Tutup detail">
                   <Icon name="close" size={16} />

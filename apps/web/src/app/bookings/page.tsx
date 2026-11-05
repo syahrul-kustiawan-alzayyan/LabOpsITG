@@ -191,7 +191,7 @@ export default function BookingsPage() {
               downloadCsv(
                 "peminjaman-lab.csv",
                 bookings.map((b) => ({
-                  peminjam: b.peminjam?.nama,
+                  peminjam: b.peminjam?.nama || b.namaPeminjam || "",
                   lab: b.lab?.kode,
                   tanggal: new Date(b.tanggal).toLocaleDateString("id-ID"),
                   jamMulai: b.jamMulai,
@@ -341,7 +341,12 @@ export default function BookingsPage() {
             ) : (
               bookings.map((b) => (
                 <tr key={b.id}>
-                  <td>{b.peminjam?.nama}</td>
+                  <td>
+                    {b.peminjam?.nama || b.namaPeminjam || "-"}
+                    {!b.peminjam && b.namaPeminjam && (
+                      <span className="badge badge-muted" style={{ marginLeft: 6 }}>Publik</span>
+                    )}
+                  </td>
                   <td className="num">{b.lab?.kode}</td>
                   <td>{new Date(b.tanggal).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}</td>
                   <td className="num">
@@ -403,8 +408,24 @@ export default function BookingsPage() {
           </div>
           <div style={{ display: "grid", gap: 6, fontSize: 15.5 }}>
             <div>
-              <strong>Peminjam:</strong> {detail.peminjam?.nama} ({detail.peminjam?.email})
+              <strong>Peminjam:</strong>{" "}
+              {detail.peminjam
+                ? `${detail.peminjam.nama} (${detail.peminjam.email})`
+                : `${detail.namaPeminjam || "-"}${detail.emailPeminjam ? ` (${detail.emailPeminjam})` : ""}`}
+              {!detail.peminjam && detail.namaPeminjam && (
+                <span className="badge badge-muted" style={{ marginLeft: 6 }}>Publik</span>
+              )}
             </div>
+            {!detail.peminjam && (detail.noWhatsapp || detail.nim) && (
+              <div>
+                <strong>Kontak:</strong> {detail.noWhatsapp || "-"} · NIM {detail.nim || "-"}
+              </div>
+            )}
+            {detail.kodePengajuan && (
+              <div>
+                <strong>Kode pengajuan:</strong> <code>{detail.kodePengajuan}</code>
+              </div>
+            )}
             <div>
               <strong>Peserta:</strong> {detail.jumlahPeserta || "—"}
             </div>

@@ -66,7 +66,7 @@ export class IssuesService {
       ? await this.prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, nama: true } })
       : [];
     const map = Object.fromEntries(actors.map((a) => [a.id, a.nama]));
-    return { ...issue, history: issue.history.map((h) => ({ ...h, actorNama: map[h.actorId] || "Sistem" })) };
+    return { ...issue, history: issue.history.map((h) => ({ ...h, actorNama: map[h.actorId] || (h.actorId === "publik" ? "Pelapor (publik)" : "Sistem") })) };
   }
 
   async create(data: any, actorId: string) {
@@ -96,6 +96,78 @@ export class IssuesService {
     return issue;
   }
 
+  /** Laporan dari halaman publik: tanpa akun, dilacak lewat nomor tiket + email. */
+  async createPublic(data: any) {
+    const lab = await this.prisma.lab.findUnique({ where: { id: data.labId } });
+    if (!lab || lab.deletedAt || lab.status !== "AKTIF") throw new BadRequestException("Lab tidak tersedia");
+
+    const nomorTiket = await this.genTicket();
+    const urgensi = ["RENDAH", "SEDANG", "TINGGI"].includes(data.urgensi) ? data.urgensi : "SEDANG";
+    const issue = await this.prisma.issue.create({
+      data: {
+        nomorTiket,
+        pelaporId: null,
+        namaPelapor: data.namaPelapor.trim(),
+        emailPelapor: data.emailPelapor.trim().toLowerCase(),
+        noWhatsapp: data.noWhatsapp?.trim() || null,
+        nim: data.nim?.trim() || null,
+        labId: data.labId,
+        kategori: data.kategori,
+        urgensi,
+        deskripsi: data.deskripsi.trim(),
+        fotoUrls: Array.isArray(data.fotoUrls)
+          ? data.fotoUrls.filter((u: unknown) => typeof u === "string" && u.startsWith("/uploads/")).slice(0, 4)
+          : [],
+        status: "BARU",
+        dueAt: addDays(todayJakarta(), SLA_DAYS[urgensi] || 3),
+      },
+    });
+    await this.prisma.issueHistory.create({
+      data: { issueId: issue.id, status: "BARU", catatan: "Tiket dibuat melalui halaman publik", actorId: "publik" },
+    });
+    const coords = await this.prisma.user.findMany({ where: { role: { in: ["COORDINATOR", "ADMIN_SYSTEM"] }, status: "ACTIVE", deletedAt: null } });
+    for (const c of coords) await this.notif.create(c.id, "KENDALA_BARU", `Kendala publik: ${issue.nomorTiket} (${issue.kategori})`);
+
+    return {
+      nomorTiket: issue.nomorTiket,
+      status: issue.status,
+      kategori: issue.kategori,
+      urgensi: issue.urgensi,
+      dueAt: issue.dueAt,
+      createdAt: issue.createdAt,
+    };
+  }
+
+  /** Cek status tiket publik memakai nomor tiket + email pelapor. */
+  async findPublicStatus(nomorTiket: string, email: string) {
+    const issue = await this.prisma.issue.findUnique({
+      where: { nomorTiket: nomorTiket.trim().toUpperCase() },
+      include: {
+        lab: { select: { kode: true, nama: true } },
+        history: { orderBy: { createdAt: "asc" } },
+      },
+    });
+    if (!issue || issue.deletedAt) throw new NotFoundException("Tiket tidak ditemukan. Periksa kembali nomor tiket Anda.");
+    const emailCheck = (issue.emailPelapor || "").toLowerCase();
+    if (!email || emailCheck !== email.trim().toLowerCase()) {
+      throw new NotFoundException("Nomor tiket dan email tidak cocok.");
+    }
+    return {
+      nomorTiket: issue.nomorTiket,
+      status: issue.status,
+      kategori: issue.kategori,
+      urgensi: issue.urgensi,
+      deskripsi: issue.deskripsi,
+      lab: issue.lab,
+      namaPelapor: issue.namaPelapor,
+      dueAt: issue.dueAt,
+      resolvedAt: issue.resolvedAt,
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
+      history: issue.history.map((h) => ({ status: h.status, catatan: h.catatan, createdAt: h.createdAt })),
+    };
+  }
+
   async verify(id: string, penanggungJawabId: string, catatan: string | undefined, actorId: string) {
     const issue = await this.prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new NotFoundException("Tiket tidak ditemukan");
@@ -108,7 +180,7 @@ export class IssuesService {
     await this.prisma.issueHistory.create({ data: { issueId: id, status: "DIVERIFIKASI", catatan: catatan || "Diverifikasi", actorId } });
     await this.audit.log({ actorId, action: "VERIFY_ISSUE", objectType: "Issue", objectId: id, oldValue: issue, newValue: updated });
     if (penanggungJawabId) await this.notif.create(penanggungJawabId, "KENDALA_DITUGASKAN", `Anda ditugaskan menangani ${issue.nomorTiket}`);
-    await this.notif.create(issue.pelaporId, "KENDALA_DIVERIFIKASI", `Kendala ${issue.nomorTiket} telah diverifikasi`);
+    if (issue.pelaporId) await this.notif.create(issue.pelaporId, "KENDALA_DIVERIFIKASI", `Kendala ${issue.nomorTiket} telah diverifikasi`);
     return updated;
   }
 
@@ -128,7 +200,7 @@ export class IssuesService {
     });
     await this.prisma.issueHistory.create({ data: { issueId: id, status: status as any, catatan: catatan || "", actorId } });
     await this.audit.log({ actorId, action: "UPDATE_ISSUE_STATUS", objectType: "Issue", objectId: id, oldValue: { status: issue.status }, newValue: { status } });
-    await this.notif.create(issue.pelaporId, "KENDALA_STATUS", `Kendala ${issue.nomorTiket} berstatus ${status}`);
+    if (issue.pelaporId) await this.notif.create(issue.pelaporId, "KENDALA_STATUS", `Kendala ${issue.nomorTiket} berstatus ${status}`);
     return updated;
   }
 

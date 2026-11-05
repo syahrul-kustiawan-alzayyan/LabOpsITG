@@ -221,7 +221,15 @@ model MataKuliah {
 
 model Booking {
   id              String        @id @default(cuid())
-  peminjamId      String
+  /// Kosong bila pengajuan dikirim publik (tanpa akun).
+  peminjamId      String?
+  /// Kode publik untuk memeriksa status pengajuan tanpa masuk.
+  kodePengajuan   String?       @unique
+  /// Data peminjam publik (tanpa akun).
+  namaPeminjam    String?
+  emailPeminjam   String?
+  noWhatsapp      String?
+  nim             String?
   labId           String
   scheduleId      String?
   tanggal         DateTime
@@ -238,7 +246,7 @@ model Booking {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  peminjam  User      @relation("Peminjam", fields: [peminjamId], references: [id])
+  peminjam  User?     @relation("Peminjam", fields: [peminjamId], references: [id])
   lab       Lab       @relation(fields: [labId], references: [id])
   schedule  Schedule? @relation(fields: [scheduleId], references: [id])
   pemroses  User?     @relation("Pemroses", fields: [pemrosesId], references: [id])
@@ -249,7 +257,13 @@ model Booking {
 model Issue {
   id               String        @id @default(cuid())
   nomorTiket       String        @unique
-  pelaporId        String
+  /// Kosong bila laporan dikirim publik (tanpa akun).
+  pelaporId        String?
+  /// Data pelapor publik (tanpa akun).
+  namaPelapor      String?
+  emailPelapor     String?
+  noWhatsapp       String?
+  nim              String?
   labId            String
   itemId           String?
   kategori         IssueCategory
@@ -264,7 +278,7 @@ model Issue {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  pelapor          User           @relation("Pelapor", fields: [pelaporId], references: [id])
+  pelapor          User?          @relation("Pelapor", fields: [pelaporId], references: [id])
   lab              Lab            @relation(fields: [labId], references: [id])
   item             InventoryItem? @relation(fields: [itemId], references: [id])
   penanggungJawab  User?          @relation("PenanggungJawab", fields: [penanggungJawabId], references: [id])

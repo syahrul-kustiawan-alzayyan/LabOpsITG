@@ -18,10 +18,12 @@ test.describe("Halaman informasi publik", () => {
     await expect(page.locator("#landing-lab")).toBeVisible();
 
     await page.goto("/informasi/peminjaman");
-    await expect(page.getByRole("link", { name: /halaman pengajuan/i })).toHaveAttribute("href", "/bookings");
+    await expect(page.locator("#p-lab")).toBeVisible();
+    await expect(page.getByRole("button", { name: /kirim pengajuan/i })).toBeVisible();
 
     await page.goto("/informasi/kendala");
-    await expect(page.getByRole("link", { name: /halaman pelaporan/i })).toHaveAttribute("href", "/issues");
+    await expect(page.locator("#k-lab")).toBeVisible();
+    await expect(page.getByRole("button", { name: /kirim laporan/i })).toBeVisible();
 
     await page.goto("/informasi/rekrutmen");
     await expect(page.getByRole("heading", { name: /rekrutmen instruktur/i })).toBeVisible();

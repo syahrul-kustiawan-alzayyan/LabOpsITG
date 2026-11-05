@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
 import { BookingsController } from "./bookings.controller";
+import { BookingsPublicController } from "./bookings-public.controller";
 import { BookingsReminderService } from "./bookings-reminder.service";
 import { PrismaModule } from "../prisma/prisma.module";
 import { AuditModule } from "../audit/audit.module";
@@ -10,7 +11,7 @@ import { RolesGuard } from "../auth/roles.guard";
 
 @Module({
   imports: [PrismaModule, AuditModule, AuthModule, NotificationsModule],
-  controllers: [BookingsController],
+  controllers: [BookingsController, BookingsPublicController],
   providers: [BookingsService, BookingsReminderService, RolesGuard],
   exports: [BookingsService],
 })

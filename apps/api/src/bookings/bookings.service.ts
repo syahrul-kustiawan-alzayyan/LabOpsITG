@@ -130,6 +130,89 @@ export class BookingsService {
     return booking;
   }
 
+  private async genKodePengajuan(): Promise<string> {
+    const now = new Date();
+    const stamp = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    for (let i = 0; i < 6; i++) {
+      const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const kode = `PJM-${stamp}-${suffix}`;
+      const exists = await this.prisma.booking.findUnique({ where: { kodePengajuan: kode } });
+      if (!exists) return kode;
+    }
+    throw new BadRequestException("Gagal membuat kode pengajuan, coba lagi");
+  }
+
+  /** Pengajuan dari halaman publik: tanpa akun, dilacak lewat kode + email. */
+  async createPublic(data: any) {
+    const tanggal = startOfJakartaDay(data.tanggal);
+    if (tanggal < todayJakarta()) throw new BadRequestException("Tanggal pemakaian sudah lewat");
+    const av = await this.checkAvailability(data.labId, tanggal, data.jamMulai, data.jamSelesai);
+    if (!av.ok) throw new BadRequestException(av.reason);
+
+    const kodePengajuan = await this.genKodePengajuan();
+    const booking = await this.prisma.booking.create({
+      data: {
+        peminjamId: null,
+        kodePengajuan,
+        namaPeminjam: data.namaPeminjam.trim(),
+        emailPeminjam: data.emailPeminjam.trim().toLowerCase(),
+        noWhatsapp: data.noWhatsapp?.trim() || null,
+        nim: data.nim?.trim() || null,
+        labId: data.labId,
+        tanggal,
+        jamMulai: data.jamMulai,
+        jamSelesai: data.jamSelesai,
+        keperluan: data.keperluan.trim(),
+        jumlahPeserta: data.jumlahPeserta ? Number(data.jumlahPeserta) : null,
+        kebutuhanKhusus: data.kebutuhanKhusus?.trim() || null,
+        status: "DIAJUKAN",
+      },
+    });
+
+    const coords = await this.prisma.user.findMany({ where: { role: { in: ["COORDINATOR", "ADMIN_SYSTEM"] }, status: "ACTIVE", deletedAt: null } });
+    for (const c of coords) await this.notif.create(c.id, "PEMINJAMAN_BARU", `Pengajuan peminjaman publik: ${booking.keperluan}`);
+
+    return {
+      kodePengajuan: booking.kodePengajuan,
+      status: booking.status,
+      tanggal: booking.tanggal,
+      jamMulai: booking.jamMulai,
+      jamSelesai: booking.jamSelesai,
+      keperluan: booking.keperluan,
+      namaPeminjam: booking.namaPeminjam,
+      emailPeminjam: booking.emailPeminjam,
+      createdAt: booking.createdAt,
+    };
+  }
+
+  /** Cek status pengajuan publik memakai kode + email pencatat. */
+  async findPublicStatus(kode: string, email: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { kodePengajuan: kode.trim().toUpperCase() },
+      include: { lab: { select: { kode: true, nama: true, lokasi: true } } },
+    });
+    if (!booking || booking.deletedAt) throw new NotFoundException("Pengajuan tidak ditemukan. Periksa kembali kode Anda.");
+    const emailCheck = (booking.emailPeminjam || "").toLowerCase();
+    if (!email || emailCheck !== email.trim().toLowerCase()) {
+      throw new NotFoundException("Kode dan email tidak cocok.");
+    }
+    return {
+      kodePengajuan: booking.kodePengajuan,
+      status: booking.status,
+      lab: booking.lab,
+      tanggal: booking.tanggal,
+      jamMulai: booking.jamMulai,
+      jamSelesai: booking.jamSelesai,
+      keperluan: booking.keperluan,
+      jumlahPeserta: booking.jumlahPeserta,
+      kebutuhanKhusus: booking.kebutuhanKhusus,
+      alasanKeputusan: booking.alasanKeputusan,
+      namaPeminjam: booking.namaPeminjam,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+    };
+  }
+
   async approve(id: string, actorId: string) {
     // Transaksi + update bersyarat mencegah double-approve saat dua koordinator menekan bersamaan.
     const result = await this.prisma.$transaction(async (tx) => {
@@ -146,7 +229,7 @@ export class BookingsService {
       return tx.booking.findUnique({ where: { id } });
     });
     await this.audit.log({ actorId, action: "APPROVE_BOOKING", objectType: "Booking", objectId: id, newValue: result });
-    await this.notif.create(result!.peminjamId, "PEMINJAMAN_DISETUJUI", "Peminjaman lab Anda disetujui");
+    if (result?.peminjamId) await this.notif.create(result.peminjamId, "PEMINJAMAN_DISETUJUI", "Peminjaman lab Anda disetujui");
     return result;
   }
 
@@ -157,7 +240,7 @@ export class BookingsService {
     if (b.status !== "DIAJUKAN") throw new BadRequestException("Hanya pengajuan berstatus Diajukan yang dapat ditolak");
     const updated = await this.prisma.booking.update({ where: { id }, data: { status: "DITOLAK", pemrosesId: actorId, alasanKeputusan: alasan } });
     await this.audit.log({ actorId, action: "REJECT_BOOKING", objectType: "Booking", objectId: id, oldValue: b, newValue: updated });
-    await this.notif.create(b.peminjamId, "PEMINJAMAN_DITOLAK", `Peminjaman lab ditolak: ${alasan}`);
+    if (b.peminjamId) await this.notif.create(b.peminjamId, "PEMINJAMAN_DITOLAK", `Peminjaman lab ditolak: ${alasan}`);
     return updated;
   }
 
@@ -171,7 +254,7 @@ export class BookingsService {
     await this.audit.log({ actorId, action: "CANCEL_BOOKING", objectType: "Booking", objectId: id, oldValue: b, newValue: updated });
     const coords = await this.prisma.user.findMany({ where: { role: { in: ["COORDINATOR", "ADMIN_SYSTEM"] }, status: "ACTIVE", deletedAt: null } });
     for (const c of coords) await this.notif.create(c.id, "PEMINJAMAN_DIBATALKAN", "Peminjaman lab dibatalkan oleh peminjam");
-    await this.notif.create(b.peminjamId, "PEMINJAMAN_DIBATALKAN", "Peminjaman lab Anda dibatalkan");
+    if (b.peminjamId) await this.notif.create(b.peminjamId, "PEMINJAMAN_DIBATALKAN", "Peminjaman lab Anda dibatalkan");
     return updated;
   }
 
