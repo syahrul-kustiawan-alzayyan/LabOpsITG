@@ -6,20 +6,29 @@ import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Icon, IconName } from "./Icon";
 
-type NavItem = { href: string; label: string; icon: IconName; roles: string[] | null; group: string };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: IconName;
+  roles: string[] | null;
+  group: string;
+  /** Grup khusus saat pengguna berperan koordinator, agar menu utamanya mengelompok. */
+  coordGroup?: string;
+};
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dasbor", icon: "dashboard", roles: null, group: "Operasional" },
-  { href: "/schedules", label: "Jadwal", icon: "calendar", roles: null, group: "Operasional" },
-  { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional" },
-  { href: "/issues", label: "Kendala", icon: "issue", roles: null, group: "Operasional" },
+  { href: "/dashboard", label: "Dasbor", icon: "dashboard", roles: ["ADMIN_SYSTEM", "USER", "LEADER"], group: "Operasional" },
+  { href: "/koordinator", label: "Dasbor Koordinator", icon: "dashboard", roles: ["COORDINATOR"], group: "Operasional" },
+  { href: "/schedules", label: "Jadwal", icon: "calendar", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
+  { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
+  { href: "/issues", label: "Kendala", icon: "issue", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
   { href: "/attendance", label: "Absensi", icon: "attendance", roles: null, group: "Operasional" },
   { href: "/attendance/admin", label: "Admin Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Manajemen" },
-  { href: "/courses", label: "Mata Kuliah", icon: "book", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen" },
+  { href: "/courses", label: "Mata Kuliah", icon: "book", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen", coordGroup: "Menu Koordinator" },
   { href: "/labs", label: "Lab", icon: "lab", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen" },
-  { href: "/inventory", label: "Inventaris", icon: "inventory", roles: null, group: "Manajemen" },
+  { href: "/inventory", label: "Inventaris", icon: "inventory", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
   { href: "/staff", label: "Instruktur & Asisten", icon: "staff", roles: null, group: "Manajemen" },
-  { href: "/recruitment", label: "Rekrutmen", icon: "recruitment", roles: null, group: "Manajemen" },
+  { href: "/recruitment", label: "Rekrutmen", icon: "recruitment", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
   { href: "/reports", label: "Laporan", icon: "report", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Wawasan" },
   { href: "/prodi", label: "Prodi", icon: "prodi", roles: ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"], group: "Wawasan" },
   { href: "/audit", label: "Jejak Audit", icon: "shield", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Wawasan" },
@@ -167,9 +176,15 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   if (isPublic) return <>{children}</>;
 
   const role = user?.role;
+  const groupOf = (n: NavItem) => (role === "COORDINATOR" && n.coordGroup ? n.coordGroup : n.group);
   const allowed = NAV.filter((n) => !n.roles || (role && n.roles.includes(role)));
-  const groups = Array.from(new Set(allowed.map((n) => n.group)));
+  const groups = Array.from(new Set(allowed.map(groupOf)));
   const current = NAV.find((n) => n.href === pathname);
+  const homeHref = role === "COORDINATOR" ? "/koordinator" : "/dashboard";
+  const mobileHrefs =
+    role === "COORDINATOR"
+      ? ["/koordinator", "/schedules", "/bookings", "/issues", "/attendance"]
+      : MOBILE;
   // Jika beberapa menu berbagi prefix (mis. /attendance dan /attendance/admin),
   // hanya menu dengan prefix terpanjang yang ditandai aktif.
   const activeHref = allowed
@@ -179,7 +194,7 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell">
       <aside className={`rail ${open ? "is-open" : ""}`} aria-label="Navigasi utama">
-        <Link href="/dashboard" className="rail-brand" style={{ textDecoration: "none" }}>
+        <Link href={homeHref} className="rail-brand" style={{ textDecoration: "none" }}>
           <span className="rail-mark" aria-hidden="true">
             L
           </span>
@@ -194,7 +209,7 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
             <div key={group}>
               <div className="rail-section">{group}</div>
               {allowed
-                .filter((n) => n.group === group)
+                .filter((n) => groupOf(n) === group)
                 .map((n) => {
                   const active = n.href === activeHref;
                   return (
@@ -317,7 +332,7 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
 
       <nav className="mobile-nav" aria-label="Navigasi seluler">
         {allowed
-          .filter((n) => MOBILE.includes(n.href))
+          .filter((n) => mobileHrefs.includes(n.href))
           .map((n) => {
             const active = pathname === n.href;
             return (

@@ -63,6 +63,12 @@ export default function InventoryPage() {
   }, [filterLab, filterKondisi, filterKategori]);
 
   useEffect(() => {
+    // Dukungan tautan langsung dari dasbor: /inventory?labId=...
+    const labId = new URLSearchParams(window.location.search).get("labId");
+    if (labId) setFilterLab(labId);
+  }, []);
+
+  useEffect(() => {
     load();
   }, [load]);
 

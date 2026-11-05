@@ -18,7 +18,7 @@ export async function login(page: Page, role: Role) {
   await page.fill("#email", account.email);
   await page.fill("#password", account.password);
   await page.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/(dashboard|koordinator)/, { timeout: 20_000 });
   await expect(page.locator("h1.page-title")).toBeVisible();
 }
 

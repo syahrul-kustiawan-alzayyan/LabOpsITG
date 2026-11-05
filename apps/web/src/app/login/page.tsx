@@ -17,7 +17,7 @@ const INSTRUKTUR_ACCOUNTS = [
 
 export default function LoginPage() {
   const router = useRouter();
-  const [next, setNext] = useState("/dashboard");
+  const [next, setNext] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -35,7 +35,14 @@ export default function LoginPage() {
     setError("");
     try {
       await api("/auth/login", { method: "POST", body: { email, password } });
-      router.push(next.startsWith("/") ? next : "/dashboard");
+      let fallback = "/dashboard";
+      try {
+        const me = await api<{ user: any }>("/auth/me");
+        if (me?.user?.role === "COORDINATOR") fallback = "/koordinator";
+      } catch {
+        /* tetap arahkan ke dasbor umum bila sesi belum terbaca */
+      }
+      router.push(next && next.startsWith("/") ? next : fallback);
       router.refresh();
     } catch (err: any) {
       setError(err?.message || "Tidak dapat masuk. Periksa email dan kata sandi.");

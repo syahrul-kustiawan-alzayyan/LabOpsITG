@@ -81,6 +81,14 @@ export default function RecruitmentPage() {
     load();
   }, [load]);
 
+  // Tautan langsung dari dasbor koordinator: /recruitment?tab=kelola
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if (requested === "kelola" || requested === "manage") setTab("manage");
+    else if (requested === "lama" || requested === "mine") setTab("mine");
+    else if (requested === "lamar" || requested === "apply") setTab("apply");
+  }, []);
+
   const openPeriods = useMemo(() => periods.filter((p) => p.status === "DIBUKA" && new Date(p.tenggat) >= new Date(new Date().toDateString())), [periods]);
   const pendingApps = applications.filter((a) => ["DIAJUKAN", "DIPROSES", "WAWANCARA"].includes(a.status));
 
