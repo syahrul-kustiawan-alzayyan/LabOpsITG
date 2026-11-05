@@ -12,11 +12,11 @@ export class RecruitmentController {
 
   // Periods
   @Get("periods")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   periods(@Query() q: any) { return this.svc.findPeriods(q.status); }
 
   @Get("periods/:id")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   period(@Param("id") id: string) { return this.svc.findPeriod(id); }
 
   @Post("periods")
@@ -37,11 +37,11 @@ export class RecruitmentController {
   applications(@Query() q: any) { return this.svc.findApplications(q); }
 
   @Get("applications/mine")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN")
   mine(@Req() req: Request) { return this.svc.findMyApplications((req as any).user.sub); }
 
   @Post("applications")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN")
   apply(@Body() body: any, @Req() req: Request) { return this.svc.apply(body, (req as any).user.sub); }
 
   @Patch("applications/:id/status")

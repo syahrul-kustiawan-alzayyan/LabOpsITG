@@ -12,6 +12,8 @@ enum Role {
   COORDINATOR
   LEADER
   ADMIN_SYSTEM
+  INSTRUKTUR
+  ASISTEN_DOSEN
 }
 
 enum SubRole {

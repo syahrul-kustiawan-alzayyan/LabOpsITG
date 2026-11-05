@@ -10,14 +10,16 @@ export class SchedulesController {
   constructor(private svc: SchedulesService) {}
 
   @Get()
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findAll(@Query() q: any) { return this.svc.findAll(q); }
 
   @Get("mine")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findMine(@Req() req: Request) { return this.svc.findMine((req as any).user.sub); }
 
   @Get(":id")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findOne(@Param("id") id: string) { return this.svc.findOne(id); }
 
   @Post()

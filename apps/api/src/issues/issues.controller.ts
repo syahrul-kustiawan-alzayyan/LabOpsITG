@@ -11,21 +11,21 @@ export class IssuesController {
   constructor(private svc: IssuesService) {}
 
   @Get()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findAll(@Query() q: any, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.findAll(q, { sub: user.sub, role: user.role });
   }
 
   @Get(":id")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findOne(@Param("id") id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.findOne(id, { sub: user.sub, role: user.role });
   }
 
   @Post()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN")
   create(@Body() body: any, @Req() req: Request) {
     return this.svc.create(body, (req as any).user.sub);
   }
@@ -43,7 +43,7 @@ export class IssuesController {
   }
 
   @Patch(":id/reopen")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN")
   reopen(@Param("id") id: string, @Body() body: { catatan?: string }, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.reopen(id, body?.catatan, { sub: user.sub, role: user.role });

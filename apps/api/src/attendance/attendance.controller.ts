@@ -11,7 +11,7 @@ export class AttendanceController {
   constructor(private svc: AttendanceService) {}
 
   @Post("scan")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   scan(@Body() body: { qrToken: string }, @Req() req: Request) {
     return this.svc.scan(body.qrToken, (req as any).user.sub);
   }
@@ -23,26 +23,26 @@ export class AttendanceController {
   }
 
   @Post("request-correction")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN")
   requestCorrection(@Body() body: { sesiId: string; reason: string }, @Req() req: Request) {
     return this.svc.requestCorrection(body.sesiId, body.reason, (req as any).user.sub);
   }
 
   @Get()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   list(@Query() q: any, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.list(q, { sub: user.sub, role: user.role, subRoles: user.subRoles });
   }
 
   @Get("team")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   team(@Query("date") date: string | undefined, @Req() req: Request) {
     return this.svc.team(date, (req as any).user);
   }
 
   @Post("team")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "INSTRUKTUR")
   markTeam(
     @Body() body: { sesiId: string; date?: string; records: { userId: string; status: string; reason?: string }[] },
     @Req() req: Request,
@@ -51,7 +51,7 @@ export class AttendanceController {
   }
 
   @Post("instruktur/session")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "INSTRUKTUR")
   createInstrukturSession(
     @Body() body: { mataKuliahId: string; kelas: string; tanggal?: string; pertemuanKe?: number; materi?: string; records: { userId: string; status: string; reason?: string }[] },
     @Req() req: Request,
@@ -60,13 +60,13 @@ export class AttendanceController {
   }
 
   @Post("validate")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   validateScan(@Body() body: { qrToken: string }, @Req() req: Request) {
     return this.svc.validateScan(body.qrToken, (req as any).user.sub);
   }
 
   @Post("validate/confirm")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   confirmValidation(@Body() body: { qrToken: string }, @Req() req: Request) {
     return this.svc.confirmValidation(body.qrToken, (req as any).user.sub);
   }

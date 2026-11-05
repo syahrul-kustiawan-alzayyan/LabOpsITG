@@ -73,14 +73,15 @@ export default function DashboardPage() {
     };
   }, []);
 
+  const isStaff = me && ["INSTRUKTUR", "ASISTEN_DOSEN"].includes(me.role);
   const manager = me && ["ADMIN_SYSTEM", "COORDINATOR", "LEADER"].includes(me.role);
   const isCoordinator = me && ["ADMIN_SYSTEM", "COORDINATOR"].includes(me.role);
   const todayName = new Date().getDay();
 
   const todaySchedules = useMemo(() => {
-    const source = me?.role === "USER" ? mine || [] : today?.sessions?.length ? today.sessions : [];
+    const source = me?.role === "USER" && !isStaff ? mine || [] : today?.sessions?.length ? today.sessions : [];
     return source.filter((s: any) => (s.day ?? s.hari) === undefined || (s.hari ?? todayName) === todayName);
-  }, [mine, today, me, todayName]);
+  }, [mine, today, me, todayName, isStaff]);
 
   const todayBookings = bookings.filter(
     (b) => new Date(b.tanggal).toDateString() === new Date().toDateString() && ["DIAJUKAN", "DISETUJUI"].includes(b.status),
@@ -176,7 +177,7 @@ export default function DashboardPage() {
         <div className="card-head">
           <div>
             <h2 className="card-title">
-              {me?.role === "USER" ? "Jadwal saya hari ini" : "Peta lab hari ini"} · {HARI[todayName]}
+              {me?.role === "USER" && !isStaff ? "Jadwal saya hari ini" : "Peta lab hari ini"} · {HARI[todayName]}
             </h2>
             <p className="card-note">Klik blok untuk membuka jadwal lab terkait.</p>
           </div>

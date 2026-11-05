@@ -94,17 +94,16 @@ export default function MatakuliahSayaPage() {
     load();
   }, [load]);
 
-  const mySubRoles = me?.subRoles ?? [];
-  const isInstruktur = mySubRoles.includes("INSTRUKTUR");
-  const isAsdos = mySubRoles.includes("ASISTEN_DOSEN");
+  const isInstruktur = me && ["INSTRUKTUR", "ASISTEN_DOSEN"].includes(me.role);
+  const isAsdos = me && me.role === "ASISTEN_DOSEN";
   const myId = me?.id;
 
-  // Mahasiswa (USER tanpa subRole INSTRUKTUR/ASISTEN_DOSEN) tidak boleh mengakses halaman ini
+  // Mahasiswa (USER tanpa role INSTRUKTUR/ASISTEN_DOSEN) tidak boleh mengakses halaman ini
   useEffect(() => {
-    if (me && me.role === "USER" && !isInstruktur && !isAsdos) {
+    if (me && me.role === "USER" && !isInstruktur) {
       router.replace("/dashboard?denied=1");
     }
-  }, [me, isInstruktur, isAsdos, router]);
+  }, [me, isInstruktur, router]);
 
   // Build session stats per course
   const sessionStats = useMemo(() => {

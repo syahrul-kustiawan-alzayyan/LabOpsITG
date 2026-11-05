@@ -48,14 +48,14 @@ const ASISTEN = [
   { nama: "Nabila Putri", email: "asisten14@labops.local" },
 ];
 
-async function upsertPersonel(list, subRole, defaultPassword) {
+async function upsertPersonel(list, role, defaultPassword) {
   const users = [];
   for (const p of list) {
     const passwordHash = await bcrypt.hash(p.password || defaultPassword, 10);
     const user = await prisma.user.upsert({
       where: { email: p.email },
-      update: { nama: p.nama, passwordHash, role: "USER", subRoles: [subRole], status: "ACTIVE", deletedAt: null },
-      create: { nama: p.nama, email: p.email, passwordHash, role: "USER", subRoles: [subRole] },
+      update: { nama: p.nama, passwordHash, role, status: "ACTIVE", deletedAt: null },
+      create: { nama: p.nama, email: p.email, passwordHash, role },
       select: { id: true, nama: true, email: true },
     });
     users.push(user);

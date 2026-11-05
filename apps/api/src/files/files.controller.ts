@@ -26,7 +26,7 @@ const storage = diskStorage({
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class FilesController {
   @Post("upload")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   @UseInterceptors(
     FileInterceptor("file", {
       storage,

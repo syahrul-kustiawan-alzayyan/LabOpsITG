@@ -12,27 +12,27 @@ export class BookingsController {
   constructor(private svc: BookingsService) {}
 
   @Get()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findAll(@Query() q: any, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.findAll(q, { sub: user.sub, role: user.role });
   }
 
   @Get("availability/check")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   check(@Query() q: any) {
     return this.svc.checkAvailability(q.labId, q.tanggal, q.jamMulai, q.jamSelesai);
   }
 
   @Get(":id")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findOne(@Param("id") id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.findOne(id, { sub: user.sub, role: user.role });
   }
 
   @Post()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN")
   create(@Body() body: CreateBookingDto, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.create(body, user.sub, user.role);
@@ -51,7 +51,7 @@ export class BookingsController {
   }
 
   @Patch(":id/cancel")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN")
   cancel(@Param("id") id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.cancel(id, user.sub, user.role);

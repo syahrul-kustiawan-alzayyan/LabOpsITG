@@ -11,7 +11,7 @@ export class InventoryController {
   constructor(private svc: InventoryService) {}
 
   @Get()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findAll(@Query() q: any) { return this.svc.findAll(q); }
 
   @Get("summary")
@@ -19,7 +19,7 @@ export class InventoryController {
   summary() { return this.svc.summary(); }
 
   @Get(":id")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   findOne(@Param("id") id: string) { return this.svc.findOne(id); }
 
   @Post()

@@ -32,9 +32,9 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true);
 
   const isCoord = me && ["ADMIN_SYSTEM", "COORDINATOR"].includes(me.role);
-  const isInstruktur = !!me?.subRoles?.includes("INSTRUKTUR");
+  const isInstruktur = me && ["INSTRUKTUR", "ASISTEN_DOSEN"].includes(me.role);
 
-  // Mahasiswa (USER tanpa subrole INSTRUKTUR) tidak boleh mengakses halaman ini
+  // Mahasiswa (USER tanpa role INSTRUKTUR/ASISTEN_DOSEN) tidak boleh mengakses halaman ini
   useEffect(() => {
     if (me && me.role === "USER" && !isInstruktur) {
       router.replace("/dashboard?denied=1");

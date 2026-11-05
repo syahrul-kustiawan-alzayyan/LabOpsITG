@@ -14,7 +14,7 @@ export class ReportsController {
   dashboard() { return this.svc.dashboard(); }
 
   @Get("today")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   today() { return this.svc.today(); }
 
   @Get("weekly")
