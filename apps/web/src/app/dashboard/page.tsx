@@ -86,6 +86,14 @@ export default function DashboardPage() {
     (b) => new Date(b.tanggal).toDateString() === new Date().toDateString() && ["DIAJUKAN", "DISETUJUI"].includes(b.status),
   );
 
+  const approvedTodayBookings = todayBookings.filter((b) => b.status === "DISETUJUI").map((b) => ({
+    id: b.id,
+    labId: b.labId,
+    jamMulai: b.jamMulai,
+    jamSelesai: b.jamSelesai,
+    keperluan: b.keperluan,
+  }));
+
   const greeting = me?.nama ? me.nama.split(" ")[0] : "Rekan";
 
   return (
@@ -177,7 +185,13 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div style={{ padding: "0 0 0" }}>
-          <ScheduleGrid schedules={todaySchedules} labs={labs} emptyLabel="Tidak ada sesi terjadwal hari ini" />
+          <ScheduleGrid
+            schedules={todaySchedules}
+            labs={labs}
+            bookings={approvedTodayBookings}
+            showBookings={true}
+            emptyLabel="Tidak ada sesi terjadwal hari ini"
+          />
         </div>
       </div>
 
