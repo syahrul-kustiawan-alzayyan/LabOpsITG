@@ -21,6 +21,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dasbor", icon: "dashboard", roles: ["ADMIN_SYSTEM", "USER", "LEADER"], group: "Operasional" },
   { href: "/koordinator", label: "Dasbor Koordinator", icon: "dashboard", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Operasional" },
+  { href: "/kaprodi", label: "Dasbor Kaprodi", icon: "dashboard", roles: ["ADMIN_SYSTEM", "LEADER", "KAPRODI"], group: "Operasional" },
   { href: "/instruktur", label: "Dasbor Instruktur", icon: "dashboard", roles: ["INSTRUKTUR", "ASISTEN_DOSEN"], group: "Operasional" },
   { href: "/schedules", label: "Jadwal", icon: "calendar", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
   { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
@@ -34,7 +35,7 @@ const NAV: NavItem[] = [
   { href: "/staff", label: "Instruktur & Asisten", icon: "staff", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
   { href: "/recruitment", label: "Rekrutmen", icon: "recruitment", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
   { href: "/reports", label: "Laporan", icon: "report", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Wawasan" },
-  { href: "/prodi", label: "Prodi", icon: "prodi", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Wawasan" },
+  { href: "/prodi", label: "Prodi", icon: "prodi", roles: ["ADMIN_SYSTEM", "LEADER", "KAPRODI"], group: "Wawasan" },
   { href: "/audit", label: "Jejak Audit", icon: "shield", roles: ["ADMIN_SYSTEM"], group: "Wawasan" },
   { href: "/users", label: "Pengguna", icon: "users", roles: ["ADMIN_SYSTEM"], group: "Wawasan" },
 ];
@@ -47,6 +48,7 @@ const ROLE_LABEL: Record<string, string> = {
   LEADER: "Pimpinan",
   INSTRUKTUR: "Instruktur",
   ASISTEN_DOSEN: "Asisten dosen",
+  KAPRODI: "Kepala Prodi",
   USER: "Pengguna",
 };
 
@@ -183,28 +185,37 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
 
   const role = user?.role;
   const isInstruktur = ["INSTRUKTUR", "ASISTEN_DOSEN"].includes(role);
+  const isKaprodi = role === "KAPRODI";
   // Koordinator terbatas hanya pada 6 menu utama + dasbor koordinator itu sendiri.
   // Instruktur/asdos tidak melihat inventaris, data personel, dan rekrutmen.
+  // Kaprodi hanya melihat menu terkait prodi miliknya.
   const allowed = NAV.filter((n) => {
     if (role && n.hiddenFor?.includes(role)) return false;
     if (role === "COORDINATOR") return n.href === "/koordinator" || n.coordGroup === "Menu Koordinator";
+    if (isKaprodi) return n.href === "/kaprodi" || (n.roles && n.roles.includes("KAPRODI"));
     if (!n.roles) return true;
     if (role && n.roles.includes(role)) return true;
     // Cadangan untuk akun lama yang masih memakai subRole INSTRUKTUR/ASISTEN_DOSEN.
     if (user?.subRoles?.some((sr: string) => n.roles.includes(sr))) return true;
     return false;
   });
-  const groupOf = (n: NavItem) => (role === "COORDINATOR" && n.coordGroup ? n.coordGroup : n.group);
+  const groupOf = (n: NavItem) => {
+    if (role === "COORDINATOR" && n.coordGroup) return n.coordGroup;
+    if (isKaprodi && n.roles && n.roles.includes("KAPRODI")) return "Menu Kaprodi";
+    return n.group;
+  };
   const groups = Array.from(new Set(allowed.map(groupOf)));
   const current = NAV.find((n) => n.href === pathname);
   const homeHref =
-    role === "COORDINATOR" ? "/koordinator" : isInstruktur ? "/instruktur" : "/dashboard";
+    role === "COORDINATOR" ? "/koordinator" : isKaprodi ? "/kaprodi" : isInstruktur ? "/instruktur" : "/dashboard";
   const mobileHrefs =
     role === "COORDINATOR"
       ? ["/koordinator", "/schedules", "/bookings", "/issues", "/inventory", "/recruitment"]
-      : isInstruktur
-        ? ["/instruktur", "/instruktur/matakuliah", "/attendance", "/schedules"]
-        : MOBILE;
+      : isKaprodi
+        ? ["/kaprodi", "/prodi", "/attendance", "/schedules"]
+        : isInstruktur
+          ? ["/instruktur", "/instruktur/matakuliah", "/attendance", "/schedules"]
+          : MOBILE;
   // Jika beberapa menu berbagi prefix (mis. /attendance dan /attendance/admin),
   // hanya menu dengan prefix terpanjang yang ditandai aktif.
   const activeHref = allowed

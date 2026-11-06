@@ -19,7 +19,8 @@ const ROLE_RULES: { prefix: string; roles: string[] }[] = [
   { prefix: "/labs", roles: ["ADMIN_SYSTEM", "COORDINATOR"] },
   { prefix: "/inventory", roles: ["ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN"] },
   { prefix: "/reports", roles: ["ADMIN_SYSTEM", "LEADER"] },
-  { prefix: "/prodi", roles: ["ADMIN_SYSTEM", "LEADER"] },
+  { prefix: "/prodi", roles: ["ADMIN_SYSTEM", "LEADER", "KAPRODI"] },
+  { prefix: "/kaprodi", roles: ["ADMIN_SYSTEM", "LEADER", "KAPRODI"] },
 ];
 
 function decodeRole(token?: string): string | null {

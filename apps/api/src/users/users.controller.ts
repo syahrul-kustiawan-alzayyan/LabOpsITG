@@ -11,11 +11,11 @@ export class UsersController {
   constructor(private users: UsersService) {}
 
   @Get()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "KAPRODI")
   findAll(@Query() q: any) { return this.users.findAll(q); }
 
   @Get(":id")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "KAPRODI")
   findOne(@Param("id") id: string) { return this.users.findOne(id); }
 
   @Post()

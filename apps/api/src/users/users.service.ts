@@ -23,16 +23,17 @@ export class UsersService {
     }
   }
 
-  findAll(q?: { search?: string; role?: string; status?: string; page?: number; pageSize?: number }) {
+  findAll(q?: { search?: string; role?: string; status?: string; page?: number; pageSize?: number; prodiId?: string }) {
     const page = q?.page || 1;
     const pageSize = Math.min(q?.pageSize || 20, 100);
     const where: any = { deletedAt: null };
     if (q?.search) where.OR = [{ nama: { contains: q.search, mode: "insensitive" } }, { email: { contains: q.search, mode: "insensitive" } }];
     if (q?.role) where.role = q.role;
     if (q?.status) where.status = q.status;
+    if (q?.prodiId) where.prodiId = q.prodiId;
     return this.prisma.user.findMany({
       where,
-      select: { id: true, nama: true, email: true, role: true, subRoles: true, status: true, createdAt: true },
+      select: { id: true, nama: true, email: true, role: true, subRoles: true, prodiId: true, status: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,

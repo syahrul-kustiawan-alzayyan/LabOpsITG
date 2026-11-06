@@ -11,21 +11,21 @@ export class CoursesController {
   constructor(private svc: CoursesService) {}
 
   @Get()
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER", "KAPRODI")
   findAll(@Query() q: any) {
     return this.svc.findAll(q);
+  }
+
+  @Get(":id")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER", "KAPRODI")
+  findOne(@Param("id") id: string) {
+    return this.svc.findOne(id);
   }
 
   @Post("personel")
   @Roles("ADMIN_SYSTEM", "COORDINATOR")
   createPersonel(@Body() body: any, @Req() req: Request) {
     return this.svc.createPersonel(body, (req as any).user?.sub);
-  }
-
-  @Get(":id")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "LEADER")
-  findOne(@Param("id") id: string) {
-    return this.svc.findOne(id);
   }
 
   @Post()

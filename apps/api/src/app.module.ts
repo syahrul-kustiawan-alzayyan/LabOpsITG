@@ -16,8 +16,10 @@ import { AttendanceModule } from "./attendance/attendance.module";
 import { ReportsModule } from "./reports/reports.module";
 import { RecruitmentModule } from "./recruitment/recruitment.module";
 import { FilesModule } from "./files/files.module";
+import { ProdiModule } from "./prodi/prodi.module";
+import { PeriodeModule } from "./periode/periode.module";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, UsersModule, HealthModule, AuditModule, LabsModule, SchedulesModule, CoursesModule, BookingsModule, NotificationsModule, IssuesModule, InventoryModule, AttendanceModule, ReportsModule, RecruitmentModule, FilesModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, UsersModule, HealthModule, AuditModule, LabsModule, SchedulesModule, CoursesModule, BookingsModule, NotificationsModule, IssuesModule, InventoryModule, AttendanceModule, ReportsModule, RecruitmentModule, FilesModule, ProdiModule, PeriodeModule],
 })
 export class AppModule {}

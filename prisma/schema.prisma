@@ -14,6 +14,7 @@ enum Role {
   ADMIN_SYSTEM
   INSTRUKTUR
   ASISTEN_DOSEN
+  KAPRODI
 }
 
 enum SubRole {
@@ -21,6 +22,16 @@ enum SubRole {
   MAHASISWA
   INSTRUKTUR
   ASISTEN_DOSEN
+}
+
+enum ProdiStatus {
+  AKTIF
+  NONAKTIF
+}
+
+enum PeriodeStatus {
+  AKTIF
+  NONAKTIF
 }
 
 enum UserStatus {
@@ -144,6 +155,52 @@ model User {
   notifications       Notification[]
   auditLogs           AuditLog[]
   enrollments         ClassEnrollment[]
+  prodi               Prodi?    @relation("ProdiUsers", fields: [prodiId], references: [id])
+  prodiId             String?
+  kaprociProdi        Prodi?    @relation("ProdiKaproci")
+}
+
+model Prodi {
+  id          String   @id @default(cuid())
+  kode        String   @unique
+  nama        String
+  status      ProdiStatus @default(AKTIF)
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  kaprodiId   String?   @unique
+  kaproci     User?    @relation("ProdiKaproci", fields: [kaprodiId], references: [id])
+  
+  users       User[]   @relation("ProdiUsers")
+  mataKuliah  MataKuliah[]
+  schedules   Schedule[]
+  attendance  Attendance[]
+  recruitmentPeriods RecruitmentPeriod[]
+
+  @@index([kode])
+}
+
+model Periode {
+  id          String   @id @default(cuid())
+  nama        String   // contoh: "2026/2027 Ganjil", "2026/2027 Genap"
+  kode        String   @unique // contoh: "202627-GANJIL", "202627-GENAP"
+  tanggalMulai DateTime
+  tanggalSelesai DateTime
+  status      PeriodeStatus @default(AKTIF)
+  isCurrent   Boolean  @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedules   Schedule[]
+  mataKuliah  MataKuliah[]
+  attendance  Attendance[]
+  bookings    Booking[]
+  recruitmentPeriods RecruitmentPeriod[]
+
+  @@index([kode])
+  @@index([isCurrent])
 }
 
 model Lab {
@@ -189,6 +246,10 @@ model Schedule {
   lab       Lab   @relation(fields: [labId], references: [id])
   pengampu  User? @relation("Pengampu", fields: [pengampuId], references: [id])
   course    MataKuliah? @relation(fields: [mataKuliahId], references: [id])
+  prodi     Prodi?   @relation(fields: [prodiId], references: [id])
+  prodiId   String?
+  periode   Periode? @relation(fields: [periodeId], references: [id])
+  periodeId String?
   bookings  Booking[]
   attendances Attendance[]
   enrollments ClassEnrollment[]
@@ -196,6 +257,8 @@ model Schedule {
 
   @@index([labId, hari, jamMulai])
   @@index([mataKuliahId])
+  @@index([prodiId])
+  @@index([periodeId])
 }
 
 model MataKuliah {
@@ -216,9 +279,14 @@ model MataKuliah {
   dosen      User?      @relation("MataKuliahDosen", fields: [dosenId], references: [id])
   instruktur User?      @relation("MataKuliahInstruktur", fields: [instrukturId], references: [id])
   schedules  Schedule[]
+  prodi      Prodi?     @relation(fields: [prodiId], references: [id])
+  prodiId    String?
+  periode    Periode?   @relation(fields: [periodeId], references: [id])
+  periodeId  String?
 
   @@index([status])
   @@index([nama])
+  @@index([prodiId])
 }
 
 model Booking {
@@ -252,8 +320,11 @@ model Booking {
   lab       Lab       @relation(fields: [labId], references: [id])
   schedule  Schedule? @relation(fields: [scheduleId], references: [id])
   pemroses  User?     @relation("Pemroses", fields: [pemrosesId], references: [id])
+  periode   Periode?  @relation(fields: [periodeId], references: [id])
+  periodeId String?
 
   @@index([labId, tanggal, jamMulai])
+  @@index([periodeId])
 }
 
 model Issue {
@@ -326,8 +397,14 @@ model Attendance {
   sesi  Schedule @relation(fields: [sesiId], references: [id])
   user  User     @relation(fields: [userId], references: [id])
   lab   Lab      @relation(fields: [labId], references: [id])
+  prodi   Prodi?    @relation(fields: [prodiId], references: [id])
+  prodiId String?
+  periode Periode? @relation(fields: [periodeId], references: [id])
+  periodeId String?
 
   @@unique([sesiId, userId, tanggal, pertemuanKe])
+  @@index([prodiId])
+  @@index([periodeId])
 }
 
 model ClassEnrollment {
@@ -401,6 +478,11 @@ model RecruitmentPeriod {
   status      RecruitmentStatus @default(DIBUKA)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+
+  prodi       Prodi?      @relation(fields: [prodiId], references: [id])
+  prodiId     String?
+  periode     Periode?    @relation(fields: [periodeId], references: [id])
+  periodeId   String?
 
   applications Application[]
 }

@@ -36,10 +36,12 @@ export class CoursesService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
 
   /** Daftar mata kuliah beserta tim pengajar dan kelas jadwalnya. */
-  async findAll(q: { search?: string; status?: string; semester?: string } = {}) {
+  async findAll(q: { search?: string; status?: string; semester?: string; prodiId?: string; periodeId?: string } = {}) {
     const where: any = { deletedAt: null };
     if (q.status) where.status = q.status;
     if (q.semester) where.semester = Number(q.semester);
+    if (q.prodiId) where.prodiId = q.prodiId;
+    if (q.periodeId) where.periodeId = q.periodeId;
     if (q.search?.trim()) {
       const s = q.search.trim();
       where.OR = [
