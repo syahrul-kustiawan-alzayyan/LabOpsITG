@@ -158,6 +158,8 @@ model User {
   prodi               Prodi?    @relation("ProdiUsers", fields: [prodiId], references: [id])
   prodiId             String?
   kaprociProdi        Prodi?    @relation("ProdiKaproci")
+  periode             Periode?  @relation(fields: [periodeId], references: [id])
+  periodeId           String?
 }
 
 model Prodi {
@@ -198,6 +200,8 @@ model Periode {
   attendance  Attendance[]
   bookings    Booking[]
   recruitmentPeriods RecruitmentPeriod[]
+  users       User[]
+  inventoryItems InventoryItem[]
 
   @@index([kode])
   @@index([isCurrent])
@@ -454,6 +458,8 @@ model InventoryItem {
   lab        Lab                @relation(fields: [labId], references: [id])
   issues     Issue[]
   mutations  InventoryMutation[]
+  periode    Periode?           @relation(fields: [periodeId], references: [id])
+  periodeId  String?
 }
 
 model InventoryMutation {

@@ -13,9 +13,10 @@ export class RecruitmentService {
   constructor(private prisma: PrismaService, private audit: AuditService, private notif: NotificationsService) {}
 
   // Periods
-  findPeriods(status?: string) {
+  findPeriods(status?: string, periodeId?: string) {
     const where: any = {};
     if (status) where.status = status;
+    if (periodeId) where.periodeId = periodeId;
     return this.prisma.recruitmentPeriod.findMany({ where, orderBy: { createdAt: "desc" }, include: { _count: { select: { applications: true } } } });
   }
 
@@ -110,13 +111,14 @@ export class RecruitmentService {
     return app;
   }
 
-  findApplications(q: { periodId?: string; status?: string }) {
+  findApplications(q: { periodId?: string; status?: string; periodeId?: string }) {
     const where: any = { deletedAt: null };
     if (q.periodId) where.periodId = q.periodId;
     if (q.status) where.status = q.status;
+    if (q.periodeId) where.period = { periodeId: q.periodeId };
     return this.prisma.application.findMany({
       where,
-      include: { pelamar: { select: { nama: true, email: true } }, period: { select: { posisi: true, mataKuliah: true } } },
+      include: { pelamar: { select: { nama: true, email: true } }, period: { select: { posisi: true, mataKuliah: true, periodeId: true } } },
       orderBy: { createdAt: "desc" },
     });
   }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -25,15 +25,19 @@ export default function StaffPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const per = withPeriode({});
+      const coursesUrl = "/courses" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const schedulesUrl = "/schedules" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const usersUrl = "/users?pageSize=100" + (Object.keys(per).length ? "&" + new URLSearchParams(per as Record<string, string>).toString() : "");
       const [courseRes, meRes, schedRes] = await Promise.all([
-        api<any[]>("/courses").catch(() => []),
+        api<any[]>(coursesUrl).catch(() => []),
         api<{ user: any }>("/auth/me"),
-        api<any[]>("/schedules").catch(() => []),
+        api<any[]>(schedulesUrl).catch(() => []),
       ]);
       const meUser = meRes.user;
       let userRes: any[] = [];
       if (["ADMIN_SYSTEM", "COORDINATOR"].includes(meUser?.role ?? "")) {
-        userRes = await api<any[]>("/users?pageSize=100").catch(() => []);
+        userRes = await api<any[]>(usersUrl).catch(() => []);
       }
       setCourses(courseRes);
       setMe(meUser);
@@ -44,10 +48,17 @@ export default function StaffPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getSelectedPeriodeId()]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Muat ulang staf saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
   }, [load]);
 
   /** Build instructor-centric structure:

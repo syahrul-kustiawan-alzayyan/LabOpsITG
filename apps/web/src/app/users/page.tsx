@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { downloadCsv } from "@/lib/export";
 
@@ -43,7 +43,8 @@ export default function UsersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ pageSize: "100" });
+      const per = withPeriode({ pageSize: "100" });
+      const params = new URLSearchParams(per as Record<string, string>);
       if (filterRole) params.set("role", filterRole);
       if (filterStatus) params.set("status", filterStatus);
       setUsers(await api<any[]>(`/users?${params.toString()}`));
@@ -52,10 +53,17 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterRole, filterStatus]);
+  }, [filterRole, filterStatus, getSelectedPeriodeId()]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Muat ulang pengguna saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
   }, [load]);
 
   const visible = useMemo(() => {

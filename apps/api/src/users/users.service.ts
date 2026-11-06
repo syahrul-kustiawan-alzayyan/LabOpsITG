@@ -23,7 +23,7 @@ export class UsersService {
     }
   }
 
-  findAll(q?: { search?: string; role?: string; status?: string; page?: number; pageSize?: number; prodiId?: string }) {
+  findAll(q?: { search?: string; role?: string; status?: string; page?: number; pageSize?: number; prodiId?: string; periodeId?: string }) {
     const page = q?.page || 1;
     const pageSize = Math.min(q?.pageSize || 20, 100);
     const where: any = { deletedAt: null };
@@ -31,9 +31,10 @@ export class UsersService {
     if (q?.role) where.role = q.role;
     if (q?.status) where.status = q.status;
     if (q?.prodiId) where.prodiId = q.prodiId;
+    if (q?.periodeId) where.periodeId = q.periodeId;
     return this.prisma.user.findMany({
       where,
-      select: { id: true, nama: true, email: true, role: true, subRoles: true, prodiId: true, status: true, createdAt: true },
+      select: { id: true, nama: true, email: true, role: true, subRoles: true, prodiId: true, periodeId: true, status: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,

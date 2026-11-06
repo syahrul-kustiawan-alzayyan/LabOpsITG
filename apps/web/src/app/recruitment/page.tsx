@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, fileUrl, uploadFile } from "@/lib/api";
+import { api, fileUrl, uploadFile, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 
 const STATUS = ["DIAJUKAN", "DIPROSES", "WAWANCARA", "DITERIMA", "DITOLAK", "CADANGAN"];
@@ -62,23 +62,33 @@ export default function RecruitmentPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, m] = await Promise.all([api<any[]>("/recruitment/periods"), api<{ user: any }>("/auth/me")]);
+      const per = withPeriode({});
+      const periodsUrl = "/recruitment/periods" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const appsUrl = "/recruitment/applications" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const [p, m] = await Promise.all([api<any[]>(periodsUrl), api<{ user: any }>("/auth/me")]);
       setPeriods(p);
       setMe(m.user);
       const mineRes = await api<any[]>("/recruitment/applications/mine").catch(() => []);
       setMine(mineRes);
-      if (["COORDINATOR", "ADMIN_SYSTEM"].includes(m.user.role)) {
-        setApplications(await api<any[]>("/recruitment/applications").catch(() => []));
+      if (["COORDINATOR", "ADMIN_SYSTEM", "KAPRODI"].includes(m.user.role)) {
+        setApplications(await api<any[]>(appsUrl).catch(() => []));
       }
     } catch (e: any) {
       setMsg({ type: "danger", text: e.message });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getSelectedPeriodeId()]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Muat ulang rekrutmen saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
   }, [load]);
 
   // Tautan langsung dari dasbor koordinator: /recruitment?tab=kelola

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { downloadCsv } from "@/lib/export";
 
@@ -44,7 +44,8 @@ export default function InventoryPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
+      const per = withPeriode({});
+      const params = new URLSearchParams(per as Record<string, string>);
       if (filterLab) params.set("labId", filterLab);
       if (filterKondisi) params.set("kondisi", filterKondisi);
       if (filterKategori) params.set("kategori", filterKategori);
@@ -71,6 +72,13 @@ export default function InventoryPage() {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Muat ulang inventaris saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
   }, [load]);
 
   const visible = useMemo(() => {

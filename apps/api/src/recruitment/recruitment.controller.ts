@@ -12,8 +12,8 @@ export class RecruitmentController {
 
   // Periods
   @Get("periods")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
-  periods(@Query() q: any) { return this.svc.findPeriods(q.status); }
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN", "KAPRODI")
+  periods(@Query() q: any) { return this.svc.findPeriods(q.status, q.periodeId); }
 
   @Get("periods/:id")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
@@ -33,7 +33,7 @@ export class RecruitmentController {
 
   // Applications
   @Get("applications")
-  @Roles("ADMIN_SYSTEM", "COORDINATOR")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR", "KAPRODI")
   applications(@Query() q: any) { return this.svc.findApplications(q); }
 
   @Get("applications/mine")

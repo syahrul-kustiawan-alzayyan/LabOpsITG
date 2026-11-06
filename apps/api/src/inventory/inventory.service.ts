@@ -6,11 +6,12 @@ import { AuditService } from "../audit/audit.service";
 export class InventoryService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
 
-  findAll(q: { labId?: string; kondisi?: string; kategori?: string }) {
+  findAll(q: { labId?: string; kondisi?: string; kategori?: string; periodeId?: string }) {
     const where: any = { deletedAt: null };
     if (q.labId) where.labId = q.labId;
     if (q.kondisi) where.kondisi = q.kondisi;
     if (q.kategori) where.kategori = q.kategori;
+    if (q.periodeId) where.periodeId = q.periodeId;
     return this.prisma.inventoryItem.findMany({ where, include: { lab: { select: { kode: true, nama: true } } }, orderBy: { kodeAset: "asc" } });
   }
 
