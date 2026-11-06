@@ -43,13 +43,18 @@ export class SchedulesService {
     });
   }
 
-  /** Jadwal yang relevan untuk satu pengguna: sebagai pengampu atau peserta terdaftar. */
+  /** Jadwal yang relevan untuk satu pengguna: sebagai pengampu, asisten, instruktur mata kuliah, atau peserta terdaftar. */
   async findMine(userId: string) {
     const schedules = await this.prisma.schedule.findMany({
       where: {
         deletedAt: null,
         status: "AKTIF",
-        OR: [{ pengampuId: userId }, { enrollments: { some: { userId, deletedAt: null } } }],
+        OR: [
+          { pengampuId: userId },
+          { asistenIds: { has: userId } },
+          { course: { instrukturId: userId, deletedAt: null } },
+          { enrollments: { some: { userId, deletedAt: null } } },
+        ],
       },
       include: {
         lab: { select: { kode: true, nama: true } },

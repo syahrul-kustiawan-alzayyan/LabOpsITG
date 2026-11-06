@@ -85,7 +85,7 @@ export default function StaffPage() {
         id: c.id,
         kode: c.kode,
         nama: c.nama,
-        schedules: c.schedules?.filter((s: any) => !s.deletedAt).length || 0,
+        schedules: (c.kelas ?? c.schedules ?? []).filter((s: any) => !s.deletedAt).length,
         asisten: (c.asisten || []).map((a: any) => ({ id: a.id, nama: a.nama, email: a.email })),
       });
     }

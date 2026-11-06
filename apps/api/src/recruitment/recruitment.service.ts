@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
+import * as bcrypt from "bcrypt";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -192,65 +193,105 @@ export class RecruitmentService {
   async updateStatus(id: string, status: string, catatan: string | undefined, actorId: string) {
     const app = await this.prisma.application.findUnique({ where: { id }, include: { period: true } });
     if (!app) throw new NotFoundException("Lamaran tidak ditemukan");
-    const updated = await this.prisma.application.update({ where: { id }, data: { status: status as any, catatanPenilaian: catatan } });
+    await this.prisma.application.update({ where: { id }, data: { status: status as any, catatanPenilaian: catatan } });
     await this.audit.log({ actorId, action: "UPDATE_APPLICATION_STATUS", objectType: "Application", objectId: id, oldValue: { status: app.status }, newValue: { status } });
     if (app.pelamarId) {
       await this.notif.create(app.pelamarId, "LAMARAN_STATUS", `Lamaran Anda berstatus ${status}`);
     }
-    // auto-role if accepted (hanya untuk pelamar yang punya akun)
-    if (status === "DITERIMA" && app.pelamarId) {
+    // auto-role if accepted
+    if (status === "DITERIMA") {
       const tipe = app.tipe ?? app.period.tipe;
-      const subRole = tipe === "INSTRUKTUR" ? "INSTRUKTUR" : "ASISTEN_DOSEN";
-      const user = await this.prisma.user.findUnique({ where: { id: app.pelamarId } });
-      if (user && !user.subRoles.includes(subRole as any)) {
-        await this.prisma.user.update({ where: { id: app.pelamarId }, data: { subRoles: { push: subRole as any } } });
-      }
-      // link user ke mata kuliah sesuai tipe rekrutmen
-      const courseName = app.period?.mataKuliah || app.mataKuliahDilamar;
-      if (courseName) {
-        const course = await this.prisma.mataKuliah.findFirst({
-          where: { nama: courseName, deletedAt: null },
-        });
-        if (course) {
-          if (tipe === "INSTRUKTUR") {
-            await this.prisma.mataKuliah.update({
-              where: { id: course.id },
-              data: { instrukturId: app.pelamarId },
-            });
-          } else if (tipe === "ASISTEN_DOSEN") {
-            await this.prisma.mataKuliah.update({
-              where: { id: course.id },
-              data: { asistenIds: { push: app.pelamarId } },
+      const role = tipe === "INSTRUKTUR" ? "INSTRUKTUR" : "ASISTEN_DOSEN";
+      let userId: string | null = app.pelamarId;
+
+      // Pelamar publik belum punya akun. Buat akun otomatis agar data yang
+      // diterima langsung tersambung ke halaman instruktur/asdos dan absensi.
+      if (!userId && app.emailKontak && app.namaLengkap) {
+        const email = String(app.emailKontak).trim().toLowerCase();
+        const nama = String(app.namaLengkap).trim();
+        const existingUser = await this.prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+          userId = existingUser.id;
+          if (existingUser.deletedAt) {
+            await this.prisma.user.update({
+              where: { id: existingUser.id },
+              data: { deletedAt: null, status: "ACTIVE" },
             });
           }
-          // sinkronkan ke schedule aktif milik course tersebut
-          const schedules = await this.prisma.schedule.findMany({
-            where: { mataKuliahId: course.id, deletedAt: null, status: "AKTIF" },
+        } else {
+          const passwordHash = await bcrypt.hash("Labops123", 10);
+          const created = await this.prisma.user.create({
+            data: { nama, email, passwordHash, role: role as any, subRoles: [role as any] },
           });
-          if (tipe === "INSTRUKTUR") {
-            for (const s of schedules) {
-              if (!s.pengampuId) {
-                await this.prisma.schedule.update({
-                  where: { id: s.id },
-                  data: { pengampuId: app.pelamarId },
-                });
-              }
+          userId = created.id;
+          await this.notif.create(userId, "AKUN_DIBUAT", "Akun Anda dibuat otomatis dari hasil rekrutmen. Kata sandi awal: Labops123");
+        }
+        await this.prisma.application.update({ where: { id }, data: { pelamarId: userId } });
+      }
+
+      if (userId) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (user) {
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+              // Instruktur/asisten dosen kini menjadi peran langsung.
+              role: role as any,
+              ...(user.subRoles.includes(role as any)
+                ? {}
+                : { subRoles: { push: role as any } }),
+            },
+          });
+        }
+
+        // Hubungkan ke mata kuliah yang dilamar.
+        const courseName = app.period?.mataKuliah || app.mataKuliahDilamar;
+        if (courseName) {
+          const course = await this.prisma.mataKuliah.findFirst({
+            where: { nama: courseName, deletedAt: null },
+          });
+          if (course) {
+            if (tipe === "INSTRUKTUR") {
+              await this.prisma.mataKuliah.update({
+                where: { id: course.id },
+                data: { instrukturId: userId },
+              });
+            } else if (tipe === "ASISTEN_DOSEN" && !course.asistenIds.includes(userId)) {
+              await this.prisma.mataKuliah.update({
+                where: { id: course.id },
+                data: { asistenIds: { push: userId } },
+              });
             }
-          } else if (tipe === "ASISTEN_DOSEN") {
+
+            // Sinkronkan ke seluruh jadwal aktif mata kuliah tersebut agar
+            // sesi praktikum langsung terhubung ke pengampu/asisten yang benar.
+            const schedules = await this.prisma.schedule.findMany({
+              where: { mataKuliahId: course.id, deletedAt: null, status: "AKTIF" },
+            });
             for (const s of schedules) {
-              const existing = s.asistenIds || [];
-              if (!existing.includes(app.pelamarId)) {
-                await this.prisma.schedule.update({
-                  where: { id: s.id },
-                  data: { asistenIds: { push: app.pelamarId } },
-                });
+              if (tipe === "INSTRUKTUR") {
+                if (s.pengampuId !== userId) {
+                  await this.prisma.schedule.update({
+                    where: { id: s.id },
+                    data: { pengampuId: userId },
+                  });
+                }
+              } else if (tipe === "ASISTEN_DOSEN") {
+                const existing = s.asistenIds || [];
+                if (!existing.includes(userId)) {
+                  await this.prisma.schedule.update({
+                    where: { id: s.id },
+                    data: { asistenIds: { push: userId } },
+                  });
+                }
               }
             }
           }
         }
       }
     }
-    return updated;
+    // Kembalikan data terbaru agar pelamarId hasil pembuatan akun ikut terlihat.
+    return this.prisma.application.findUnique({ where: { id } });
   }
 
   async setInterview(id: string, tanggal: string, actorId: string) {

@@ -48,7 +48,11 @@ export default function SchedulesPage() {
     try {
       const meRes = await api<{ user: any }>("/auth/me");
       setMe(meRes.user);
-      if (!isInstruktur && meRes.user?.subRoles?.includes("INSTRUKTUR")) {
+      if (
+        !isInstruktur &&
+        (["INSTRUKTUR", "ASISTEN_DOSEN"].includes(meRes.user?.role) ||
+          meRes.user?.subRoles?.includes("INSTRUKTUR"))
+      ) {
         setIsInstruktur(true);
         setMyOnly(true);
       }

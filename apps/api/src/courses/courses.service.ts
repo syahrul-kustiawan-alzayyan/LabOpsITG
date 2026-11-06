@@ -170,11 +170,13 @@ export class CoursesService {
         },
       });
       // Tim pengajar dan nama mata kuliah dipakai bersama oleh semua kelas.
+      // Pengampu sesi praktikum adalah instruktur; dosen hanya menjadi cadangan
+      // bila mata kuliah belum memiliki instruktur.
       await tx.schedule.updateMany({
         where: { mataKuliahId: id, deletedAt: null },
         data: {
           mataKuliah: nama,
-          pengampuId: dosenId,
+          pengampuId: instrukturId ?? dosenId,
           asistenIds,
           status: status === "NONAKTIF" ? "DIBATALKAN" : "AKTIF",
         },
@@ -331,7 +333,15 @@ export class CoursesService {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await this.prisma.user.create({
-      data: { nama, email, passwordHash, role: "USER", subRoles: [tipe] },
+      data: {
+        nama,
+        email,
+        passwordHash,
+        // Dosen tetap pengguna biasa (sub-peran DOSEN), sedangkan instruktur
+        // dan asisten dosen kini memakai peran langsung.
+        role: tipe === "DOSEN" ? "USER" : tipe,
+        subRoles: [tipe],
+      },
       select: { id: true, nama: true, email: true, role: true, subRoles: true, status: true },
     });
     if (actorId) {
@@ -484,7 +494,7 @@ export class CoursesService {
   }
 
   private toSchedule(
-    course: { id: string; nama: string; dosenId: string | null; asistenIds: string[] },
+    course: { id: string; nama: string; dosenId: string | null; instrukturId: string | null; asistenIds: string[] },
     kelas: NormalizedKelas,
   ) {
     return {
@@ -492,7 +502,8 @@ export class CoursesService {
       mataKuliahId: course.id,
       mataKuliah: course.nama,
       kelas: kelas.nama,
-      pengampuId: course.dosenId,
+      // Instruktur adalah pengampu sesi praktikum; dosen menjadi cadangan.
+      pengampuId: course.instrukturId ?? course.dosenId,
       asistenIds: course.asistenIds || [],
       hari: kelas.hari,
       jamMulai: kelas.jamMulai,

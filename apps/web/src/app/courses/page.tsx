@@ -852,8 +852,12 @@ function TeamFields({
   const dosen = users.filter(
     (u) => u.subRoles?.includes("DOSEN") || ["COORDINATOR", "ADMIN_SYSTEM"].includes(u.role),
   );
-  const instruktur = users.filter((u) => u.subRoles?.includes("INSTRUKTUR"));
-  const asisten = users.filter((u) => u.subRoles?.includes("ASISTEN_DOSEN"));
+  const instruktur = users.filter(
+    (u) => u.role === "INSTRUKTUR" || u.subRoles?.includes("INSTRUKTUR"),
+  );
+  const asisten = users.filter(
+    (u) => u.role === "ASISTEN_DOSEN" || u.subRoles?.includes("ASISTEN_DOSEN"),
+  );
 
   function toggleAsisten(id: string) {
     onChange({

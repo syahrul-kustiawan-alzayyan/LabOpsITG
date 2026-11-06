@@ -950,12 +950,19 @@ export class AttendanceService {
     actor?: SessionActor,
   ) {
     const where: any = { deletedAt: null };
-    if (actor?.role === "USER" && actor.sub) {
-      if (actor.subRoles?.includes("INSTRUKTUR")) {
-        where.OR = [{ userId: actor.sub }, { sesi: { course: { instrukturId: actor.sub } } }];
-      } else {
-        where.userId = actor.sub;
-      }
+    const isTeamViewer =
+      actor?.role === "INSTRUKTUR" ||
+      actor?.role === "ASISTEN_DOSEN" ||
+      (actor?.role === "USER" && !!actor.subRoles?.includes("INSTRUKTUR"));
+    if (isTeamViewer && actor?.sub) {
+      where.OR = [
+        { userId: actor.sub },
+        { sesi: { course: { instrukturId: actor.sub } } },
+        { sesi: { course: { asistenIds: { has: actor.sub } } } },
+        { sesi: { asistenIds: { has: actor.sub } } },
+      ];
+    } else if (actor?.role === "USER" && actor.sub) {
+      where.userId = actor.sub;
     } else if (q.userId) where.userId = q.userId;
     if (q.sesiId) where.sesiId = q.sesiId;
     if (q.labId) where.labId = q.labId;
