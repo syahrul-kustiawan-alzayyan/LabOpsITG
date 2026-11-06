@@ -45,6 +45,8 @@ test.describe("Tampilan responsif", () => {
   test("kartu ringkasan dan formulir dua kolom tidak bertumpuk", async ({ page }) => {
     await login(page, "koordinator");
 
+    // Tunggu skeleton KPI berganti menjadi kartu berisi nilai sebelum diukur.
+    await expect(page.locator(".ops-strip .ops-stat-value").first()).toBeVisible();
     const stats = page.locator(".ops-stat");
     await expect(stats.first()).toBeVisible();
     const positions = await stats.first().evaluate((el) => {

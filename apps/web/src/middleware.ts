@@ -9,6 +9,7 @@ const ROLE_RULES: { prefix: string; roles: string[] }[] = [
   { prefix: "/attendance/admin", roles: ["ADMIN_SYSTEM", "LEADER"] },
   { prefix: "/attendance", roles: ["ADMIN_SYSTEM", "USER", "INSTRUKTUR", "ASISTEN_DOSEN"] },
   { prefix: "/instruktur/matakuliah", roles: ["INSTRUKTUR", "ASISTEN_DOSEN", "USER"] },
+  { prefix: "/instruktur", roles: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
   { prefix: "/staff", roles: ["ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN", "LEADER"] },
   { prefix: "/users", roles: ["ADMIN_SYSTEM"] },
   { prefix: "/audit", roles: ["ADMIN_SYSTEM"] },

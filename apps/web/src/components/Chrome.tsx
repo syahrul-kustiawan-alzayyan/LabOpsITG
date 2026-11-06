@@ -14,11 +14,14 @@ type NavItem = {
   group: string;
   /** Grup khusus saat pengguna berperan koordinator, agar menu utamanya mengelompok. */
   coordGroup?: string;
+  /** Peran yang tidak boleh melihat menu ini meskipun roles-nya null. */
+  hiddenFor?: string[];
 };
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dasbor", icon: "dashboard", roles: ["ADMIN_SYSTEM", "USER", "LEADER"], group: "Operasional" },
   { href: "/koordinator", label: "Dasbor Koordinator", icon: "dashboard", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Operasional" },
+  { href: "/instruktur", label: "Dasbor Instruktur", icon: "dashboard", roles: ["INSTRUKTUR", "ASISTEN_DOSEN"], group: "Operasional" },
   { href: "/schedules", label: "Jadwal", icon: "calendar", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
   { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
   { href: "/issues", label: "Kendala", icon: "issue", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
@@ -27,9 +30,9 @@ const NAV: NavItem[] = [
   { href: "/attendance/admin", label: "Admin Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Manajemen" },
   { href: "/courses", label: "Mata Kuliah", icon: "book", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen", coordGroup: "Menu Koordinator" },
   { href: "/labs", label: "Lab", icon: "lab", roles: ["ADMIN_SYSTEM"], group: "Manajemen" },
-  { href: "/inventory", label: "Inventaris", icon: "inventory", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
-  { href: "/staff", label: "Instruktur & Asisten", icon: "staff", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
-  { href: "/recruitment", label: "Rekrutmen", icon: "recruitment", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
+  { href: "/inventory", label: "Inventaris", icon: "inventory", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
+  { href: "/staff", label: "Instruktur & Asisten", icon: "staff", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
+  { href: "/recruitment", label: "Rekrutmen", icon: "recruitment", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
   { href: "/reports", label: "Laporan", icon: "report", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Wawasan" },
   { href: "/prodi", label: "Prodi", icon: "prodi", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Wawasan" },
   { href: "/audit", label: "Jejak Audit", icon: "shield", roles: ["ADMIN_SYSTEM"], group: "Wawasan" },
@@ -42,6 +45,8 @@ const ROLE_LABEL: Record<string, string> = {
   ADMIN_SYSTEM: "Admin sistem",
   COORDINATOR: "Koordinator lab",
   LEADER: "Pimpinan",
+  INSTRUKTUR: "Instruktur",
+  ASISTEN_DOSEN: "Asisten dosen",
   USER: "Pengguna",
 };
 
@@ -177,24 +182,29 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   if (isPublic) return <>{children}</>;
 
   const role = user?.role;
+  const isInstruktur = ["INSTRUKTUR", "ASISTEN_DOSEN"].includes(role);
   // Koordinator terbatas hanya pada 6 menu utama + dasbor koordinator itu sendiri.
-  const allowed = role === "COORDINATOR"
-    ? NAV.filter((n) => n.href === "/koordinator" || n.coordGroup === "Menu Koordinator")
-    : NAV.filter((n) => {
-        if (!n.roles) return true;
-        if (role && n.roles.includes(role)) return true;
-        // Akun instruktur/asdos memiliki role "USER" dengan subRole INSTRUKTUR/ASISTEN_DOSEN.
-        if (user?.subRoles?.some((sr: string) => n.roles.includes(sr))) return true;
-        return false;
-      });
+  // Instruktur/asdos tidak melihat inventaris, data personel, dan rekrutmen.
+  const allowed = NAV.filter((n) => {
+    if (role && n.hiddenFor?.includes(role)) return false;
+    if (role === "COORDINATOR") return n.href === "/koordinator" || n.coordGroup === "Menu Koordinator";
+    if (!n.roles) return true;
+    if (role && n.roles.includes(role)) return true;
+    // Cadangan untuk akun lama yang masih memakai subRole INSTRUKTUR/ASISTEN_DOSEN.
+    if (user?.subRoles?.some((sr: string) => n.roles.includes(sr))) return true;
+    return false;
+  });
   const groupOf = (n: NavItem) => (role === "COORDINATOR" && n.coordGroup ? n.coordGroup : n.group);
   const groups = Array.from(new Set(allowed.map(groupOf)));
   const current = NAV.find((n) => n.href === pathname);
-  const homeHref = role === "COORDINATOR" ? "/koordinator" : "/dashboard";
+  const homeHref =
+    role === "COORDINATOR" ? "/koordinator" : isInstruktur ? "/instruktur" : "/dashboard";
   const mobileHrefs =
     role === "COORDINATOR"
       ? ["/koordinator", "/schedules", "/bookings", "/issues", "/inventory", "/recruitment"]
-      : MOBILE;
+      : isInstruktur
+        ? ["/instruktur", "/instruktur/matakuliah", "/attendance", "/schedules", "/issues"]
+        : MOBILE;
   // Jika beberapa menu berbagi prefix (mis. /attendance dan /attendance/admin),
   // hanya menu dengan prefix terpanjang yang ditandai aktif.
   const activeHref = allowed

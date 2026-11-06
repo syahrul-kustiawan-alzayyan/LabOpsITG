@@ -39,6 +39,7 @@ export default function LoginPage() {
       try {
         const me = await api<{ user: any }>("/auth/me");
         if (me?.user?.role === "COORDINATOR") fallback = "/koordinator";
+        else if (["INSTRUKTUR", "ASISTEN_DOSEN"].includes(me?.user?.role)) fallback = "/instruktur";
       } catch {
         /* tetap arahkan ke dasbor umum bila sesi belum terbaca */
       }

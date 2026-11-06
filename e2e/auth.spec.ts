@@ -57,8 +57,14 @@ test.describe("Autentikasi", () => {
     await expect(page.locator("#email")).toHaveValue("instruktur04");
     await expect(page.locator("#password")).toHaveValue("siti123");
     await page.locator('button[type="submit"]').click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/instruktur/, { timeout: 20_000 });
+    await expect(page.locator(".rail")).toContainText("Dasbor Instruktur");
     await expect(page.locator(".rail")).toContainText("Absensi");
+
+    // Menu khusus manajemen tidak boleh muncul untuk instruktur/asdos.
+    await expect(page.locator('.rail-link[href="/inventory"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/staff"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/recruitment"]')).toHaveCount(0);
   });
 
   test("admin sistem melihat menu pengguna", async ({ page }) => {
