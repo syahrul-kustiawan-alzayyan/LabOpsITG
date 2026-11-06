@@ -23,19 +23,19 @@ export class InventoryController {
   findOne(@Param("id") id: string) { return this.svc.findOne(id); }
 
   @Post()
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   create(@Body() body: any, @Req() req: Request) { return this.svc.create(body, (req as any).user?.sub); }
 
   @Put(":id")
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   update(@Param("id") id: string, @Body() body: any, @Req() req: Request) { return this.svc.update(id, body, (req as any).user?.sub); }
 
   @Patch(":id/mutate")
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   mutate(@Param("id") id: string, @Body() body: { labTujuanId: string }, @Req() req: Request) { return this.svc.mutate(id, body.labTujuanId, (req as any).user?.sub); }
 
   @Delete(":id")
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   remove(@Param("id") id: string, @Req() req: Request) { return this.svc.remove(id, (req as any).user?.sub); }
 
   @Post("import")

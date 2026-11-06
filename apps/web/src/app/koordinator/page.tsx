@@ -184,6 +184,13 @@ export default function KoordinatorPage() {
       icon: "recruitment",
       meta: `${openPeriods.length} lowongan dibuka · ${pendingApplications.length} lamaran diproses`,
     },
+    {
+      href: "/labs",
+      label: "Lab",
+      desc: "Kelola data laboratorium, kapasitas, lokasi, status, dan fasilitas di dalamnya.",
+      icon: "lab",
+      meta: `${labs.length} ruangan · ${totalAssets} aset tercatat`,
+    },
   ];
 
   return (

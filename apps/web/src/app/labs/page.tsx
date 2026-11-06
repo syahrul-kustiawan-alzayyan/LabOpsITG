@@ -20,6 +20,7 @@ export default function LabsPage() {
   const [loading, setLoading] = useState(true);
 
   const isAdmin = me?.role === "ADMIN_SYSTEM";
+  const canManageLab = ["ADMIN_SYSTEM", "COORDINATOR"].includes(me?.role);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,7 +128,7 @@ export default function LabsPage() {
           <h1 className="page-title">Manajemen Lab</h1>
           <p className="page-subtitle">Kapasitas, lokasi, status, dan token QR statis setiap laboratorium.</p>
         </div>
-        {isAdmin && (
+        {canManageLab && (
           <div className="page-actions">
             <button className="btn" onClick={() => setShowForm((v) => !v)}>
               <Icon name={showForm ? "close" : "plus"} size={16} /> {showForm ? "Tutup form" : "Tambah lab"}
@@ -173,7 +174,7 @@ export default function LabsPage() {
         </div>
       </div>
 
-      {showForm && isAdmin && (
+      {showForm && canManageLab && (
         <div className="card reveal" style={{ marginBottom: 16 }}>
           <div className="card-head">
             <div>
@@ -282,7 +283,7 @@ export default function LabsPage() {
                   </p>
                 </div>
 
-                {isAdmin && (
+                {canManageLab && (
                   <div className="table-actions" style={{ marginTop: "auto" }}>
                     <button
                       className="btn btn-secondary btn-sm"

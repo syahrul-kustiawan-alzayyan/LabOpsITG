@@ -29,7 +29,7 @@ const NAV: NavItem[] = [
   { href: "/instruktur/matakuliah", label: "Mata Kuliah Saya", icon: "book", roles: ["INSTRUKTUR", "ASISTEN_DOSEN"], group: "Operasional" },
   { href: "/attendance/admin", label: "Admin Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Manajemen" },
   { href: "/courses", label: "Mata Kuliah", icon: "book", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Manajemen", coordGroup: "Menu Koordinator" },
-  { href: "/labs", label: "Lab", icon: "lab", roles: ["ADMIN_SYSTEM"], group: "Manajemen" },
+  { href: "/labs", label: "Lab", icon: "lab", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator" },
   { href: "/inventory", label: "Inventaris", icon: "inventory", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
   { href: "/staff", label: "Instruktur & Asisten", icon: "staff", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
   { href: "/recruitment", label: "Rekrutmen", icon: "recruitment", roles: null, group: "Manajemen", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },

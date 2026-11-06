@@ -8,6 +8,7 @@ const MENU = [
   { label: "Kendala", href: "/issues" },
   { label: "Inventaris aset per ruangan", href: "/inventory" },
   { label: "Buat lowongan instruktur/asdos", href: "/recruitment?tab=kelola" },
+  { label: "Lab", href: "/labs" },
 ];
 
 test.describe("Dasbor koordinator", () => {

@@ -17,21 +17,21 @@ export class LabsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   create(@Body() body: any, @Req() req: Request) { return this.labs.create(body, (req as any).user?.sub); }
 
   @Put(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   update(@Param("id") id: string, @Body() body: any, @Req() req: Request) { return this.labs.update(id, body, (req as any).user?.sub); }
 
   @Patch(":id/regenerate-qr")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   regenerateQr(@Param("id") id: string, @Req() req: Request) { return this.labs.regenerateQr(id, (req as any).user?.sub); }
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("ADMIN_SYSTEM")
+  @Roles("ADMIN_SYSTEM", "COORDINATOR")
   remove(@Param("id") id: string, @Req() req: Request) { return this.labs.remove(id, (req as any).user?.sub); }
 }

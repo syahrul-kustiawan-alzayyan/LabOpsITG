@@ -36,12 +36,13 @@ test.describe("Autentikasi", () => {
       "Kendala",
       "Inventaris",
       "Rekrutmen",
+      "Lab",
     ]) {
       await expect(page.locator(".rail")).toContainText(label);
     }
 
-    // Menu luar cakupan koordinator tidak boleh muncul di rail.
-    await expect(page.locator('.rail-link[href="/labs"]')).toHaveCount(0);
+    // Menu luar cakupan koordinator tidak boleh muncul di rail. Lab sengaja
+    // dimasukkan ke cakupan koordinator (kelola data lab dan fasilitas).
     await expect(page.locator('.rail-link[href="/audit"]')).toHaveCount(0);
     await expect(page.locator('.rail-link[href="/users"]')).toHaveCount(0);
     await expect(page.locator('.rail-link[href="/attendance"]')).toHaveCount(0);

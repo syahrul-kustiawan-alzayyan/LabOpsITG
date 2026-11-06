@@ -39,6 +39,7 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
 
   const isAdmin = me?.role === "ADMIN_SYSTEM";
+  const canManageInventory = ["ADMIN_SYSTEM", "COORDINATOR"].includes(me?.role);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -167,7 +168,7 @@ export default function InventoryPage() {
           >
             <Icon name="report" size={16} /> Ekspor CSV
           </button>
-          {isAdmin && (
+          {canManageInventory && (
             <button className="btn" onClick={() => setShowForm((v) => !v)}>
               <Icon name={showForm ? "close" : "plus"} size={16} /> {showForm ? "Tutup form" : "Tambah aset"}
             </button>
@@ -212,7 +213,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {showForm && isAdmin && (
+      {showForm && canManageInventory && (
         <div className="card reveal" style={{ marginBottom: 16 }}>
           <div className="card-head">
             <div>
@@ -368,7 +369,7 @@ export default function InventoryPage() {
                   <td>{it.kategori.replaceAll("_", " ").toLowerCase()}</td>
                   <td className="num">{it.lab?.kode}</td>
                   <td>
-                    {isAdmin ? (
+                    {canManageInventory ? (
                       <select className="input" style={{ width: 170, padding: "4px 8px", minHeight: 30 }} value={it.kondisi} onChange={(e) => updateKondisi(it.id, e.target.value)} aria-label={`Kondisi ${it.kodeAset}`}>
                         {KONDISI.map((k) => (
                           <option key={k} value={k}>
@@ -382,7 +383,7 @@ export default function InventoryPage() {
                   </td>
                   <td className="num">{it.tanggalPerolehan ? new Date(it.tanggalPerolehan).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
                   <td>
-                    {isAdmin ? (
+                    {canManageInventory ? (
                       <div className="table-actions">
                         <button className="btn btn-secondary btn-sm" onClick={() => setMutateItem(it)}>
                           Mutasi
