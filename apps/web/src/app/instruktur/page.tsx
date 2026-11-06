@@ -199,18 +199,6 @@ export default function InstrukturDashboardPage() {
       desc: "Periksa ruangan dan jam praktikum Anda.",
       icon: "calendar",
     },
-    {
-      href: "/bookings",
-      label: "Peminjaman lab",
-      desc: "Ajukan pemakaian lab di luar jadwal praktikum.",
-      icon: "booking",
-    },
-    {
-      href: "/issues",
-      label: "Lapor kendala",
-      desc: "Laporkan kerusakan alat atau ruangan laboratorium.",
-      icon: "issue",
-    },
   ];
 
   return (

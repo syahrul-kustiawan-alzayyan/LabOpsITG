@@ -23,8 +23,8 @@ const NAV: NavItem[] = [
   { href: "/koordinator", label: "Dasbor Koordinator", icon: "dashboard", roles: ["ADMIN_SYSTEM", "COORDINATOR"], group: "Operasional" },
   { href: "/instruktur", label: "Dasbor Instruktur", icon: "dashboard", roles: ["INSTRUKTUR", "ASISTEN_DOSEN"], group: "Operasional" },
   { href: "/schedules", label: "Jadwal", icon: "calendar", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
-  { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
-  { href: "/issues", label: "Kendala", icon: "issue", roles: null, group: "Operasional", coordGroup: "Menu Koordinator" },
+  { href: "/bookings", label: "Peminjaman", icon: "booking", roles: null, group: "Operasional", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
+  { href: "/issues", label: "Kendala", icon: "issue", roles: null, group: "Operasional", coordGroup: "Menu Koordinator", hiddenFor: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
   { href: "/attendance", label: "Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN"], group: "Operasional" },
   { href: "/instruktur/matakuliah", label: "Mata Kuliah Saya", icon: "book", roles: ["INSTRUKTUR", "ASISTEN_DOSEN"], group: "Operasional" },
   { href: "/attendance/admin", label: "Admin Absensi", icon: "attendance", roles: ["ADMIN_SYSTEM", "LEADER"], group: "Manajemen" },
@@ -203,7 +203,7 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
     role === "COORDINATOR"
       ? ["/koordinator", "/schedules", "/bookings", "/issues", "/inventory", "/recruitment"]
       : isInstruktur
-        ? ["/instruktur", "/instruktur/matakuliah", "/attendance", "/schedules", "/issues"]
+        ? ["/instruktur", "/instruktur/matakuliah", "/attendance", "/schedules"]
         : MOBILE;
   // Jika beberapa menu berbagi prefix (mis. /attendance dan /attendance/admin),
   // hanya menu dengan prefix terpanjang yang ditandai aktif.

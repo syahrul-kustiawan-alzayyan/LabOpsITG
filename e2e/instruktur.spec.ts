@@ -19,8 +19,21 @@ test.describe("Dasbor instruktur", () => {
     await expect(page.locator('.rail-link[href="/inventory"]')).toHaveCount(0);
     await expect(page.locator('.rail-link[href="/staff"]')).toHaveCount(0);
     await expect(page.locator('.rail-link[href="/recruitment"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/bookings"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/issues"]')).toHaveCount(0);
 
     await assertNoHorizontalOverflow(page);
+    await logout(page);
+  });
+
+  test("instruktur dialihkan dari peminjaman, kendala, dan dasbor umum", async ({ page }) => {
+    await login(page, "instruktur");
+
+    for (const path of ["/bookings", "/issues", "/dashboard"]) {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/instruktur\?denied=1/);
+    }
+
     await logout(page);
   });
 

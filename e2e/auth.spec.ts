@@ -65,6 +65,8 @@ test.describe("Autentikasi", () => {
     await expect(page.locator('.rail-link[href="/inventory"]')).toHaveCount(0);
     await expect(page.locator('.rail-link[href="/staff"]')).toHaveCount(0);
     await expect(page.locator('.rail-link[href="/recruitment"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/bookings"]')).toHaveCount(0);
+    await expect(page.locator('.rail-link[href="/issues"]')).toHaveCount(0);
   });
 
   test("admin sistem melihat menu pengguna", async ({ page }) => {

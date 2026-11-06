@@ -10,6 +10,9 @@ const ROLE_RULES: { prefix: string; roles: string[] }[] = [
   { prefix: "/attendance", roles: ["ADMIN_SYSTEM", "USER", "INSTRUKTUR", "ASISTEN_DOSEN"] },
   { prefix: "/instruktur/matakuliah", roles: ["INSTRUKTUR", "ASISTEN_DOSEN", "USER"] },
   { prefix: "/instruktur", roles: ["INSTRUKTUR", "ASISTEN_DOSEN"] },
+  { prefix: "/bookings", roles: ["ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER"] },
+  { prefix: "/issues", roles: ["ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER"] },
+  { prefix: "/dashboard", roles: ["ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER"] },
   { prefix: "/staff", roles: ["ADMIN_SYSTEM", "COORDINATOR", "USER", "INSTRUKTUR", "ASISTEN_DOSEN", "LEADER"] },
   { prefix: "/users", roles: ["ADMIN_SYSTEM"] },
   { prefix: "/audit", roles: ["ADMIN_SYSTEM"] },
@@ -66,7 +69,8 @@ export function middleware(req: NextRequest) {
     const rule = ROLE_RULES.find((r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"));
     if (rule && !rule.roles.includes(role)) {
       const url = req.nextUrl.clone();
-      url.pathname = "/dashboard";
+      // Instruktur/asdos tidak memiliki dasbor umum, jadi kembalikan ke dasbornya.
+      url.pathname = ["INSTRUKTUR", "ASISTEN_DOSEN"].includes(role) ? "/instruktur" : "/dashboard";
       url.searchParams.set("denied", "1");
       return NextResponse.redirect(url);
     }
