@@ -226,6 +226,50 @@ a:hover {
   opacity: 0.9;
 }
 
+.rail:not(.is-open) .rail-period {
+  display: none;
+}
+
+.rail-period {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rail-period-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.rail-period-select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.rail-period-select option {
+  background: #0f1e1a;
+  color: #fff;
+  padding: 8px 10px;
+}
+.rail-period-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.rail-period-loading {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .rail-nav {
   padding: 16px 12px;
   display: flex;

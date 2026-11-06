@@ -74,6 +74,9 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unread, setUnread] = useState(0);
   const [today, setToday] = useState("");
+  const [periods, setPeriods] = useState<any[]>([]);
+  const [currentPeriod, setCurrentPeriod] = useState<any>(null);
+  const [periodLoading, setPeriodLoading] = useState(false);
   const popRef = useRef<HTMLDivElement>(null);
 
   const isPublic =
@@ -130,6 +133,36 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
     const id = setInterval(loadNotifications, 60_000);
     return () => clearInterval(id);
   }, [user, loadNotifications]);
+
+  const loadPeriods = useCallback(async () => {
+    try {
+      const data = await api<any[]>("/periode");
+      setPeriods(data);
+      const cur = data.find((p) => p.isCurrent) || data[0];
+      setCurrentPeriod(cur);
+    } catch {
+      /* periode bersifat opsional di sidebar */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loaded && user) loadPeriods();
+  }, [loaded, user, loadPeriods]);
+
+  async function switchPeriod(periodeId: string) {
+    setPeriodLoading(true);
+    try {
+      await api(`/periode/${periodeId}/current`, { method: "POST" });
+      const data = await api<any[]>("/periode");
+      setPeriods(data);
+      const cur = data.find((p) => p.isCurrent) || data[0];
+      setCurrentPeriod(cur);
+    } catch (e: any) {
+      console.error("Gagal mengganti periode:", e?.message);
+    } finally {
+      setPeriodLoading(false);
+    }
+  }
 
   useEffect(() => {
     function onOutside(e: MouseEvent) {
@@ -234,6 +267,26 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
             <span className="rail-brand-sub">Ilkom ITG</span>
           </span>
         </Link>
+
+        {loaded && user && periods.length > 0 && (
+          <div className="rail-period">
+            <label className="rail-period-label">Periode</label>
+            <select
+              className="rail-period-select input"
+              value={currentPeriod?.id || ""}
+              onChange={(e) => switchPeriod(e.target.value)}
+              disabled={periodLoading}
+              aria-label="Pilih periode akademik"
+            >
+              {periods.map((p) => (
+                <option key={p.id} value={p.id} disabled={p.deletedAt}>
+                  {p.nama} {p.isCurrent ? "· Aktif" : ""}
+                </option>
+              ))}
+            </select>
+            {periodLoading && <span className="rail-period-loading">…</span>}
+          </div>
+        )}
 
         <nav className="rail-nav">
           {groups.map((group) => (
