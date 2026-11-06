@@ -847,6 +847,71 @@ export class AttendanceService {
     };
   }
 
+  /**
+   * Tampilkan kembali QR validasi KM untuk sesi absensi yang sudah tersimpan.
+   * Hanya berlaku selama belum ada catatan yang divalidasi KM.
+   */
+  async instrukturSessionQr(
+    sesiId: string,
+    body: { tanggal?: string; pertemuanKe?: number | null },
+    actor: SessionActor,
+  ) {
+    if (!body?.tanggal) throw new BadRequestException("Tanggal absensi wajib diisi");
+    const day = startOfJakartaDay(body.tanggal);
+    if (Number.isNaN(day.getTime())) throw new BadRequestException("Tanggal absensi tidak valid");
+
+    const sesi = await this.prisma.schedule.findUnique({
+      where: { id: sesiId },
+      include: {
+        lab: { select: { kode: true } },
+        course: { select: { kode: true, nama: true, instrukturId: true } },
+      },
+    });
+    if (!sesi || sesi.deletedAt) throw new NotFoundException("Sesi absensi tidak ditemukan");
+    if (!sesi.course) throw new BadRequestException("Sesi belum tertaut dengan mata kuliah");
+    if (actor.role !== "ADMIN_SYSTEM" && sesi.course.instrukturId !== actor.sub) {
+      throw new ForbiddenException("Hanya instruktur pengampu mata kuliah ini yang dapat menampilkan QR sesi");
+    }
+
+    const records = await this.prisma.attendance.findMany({
+      where: {
+        sesiId,
+        tanggal: day,
+        pertemuanKe: body.pertemuanKe ?? null,
+        deletedAt: null,
+      },
+      select: { id: true, materi: true, validatedAt: true, validatedBy: true },
+    });
+    if (records.length === 0) throw new NotFoundException("Catatan absensi tidak ditemukan");
+    if (records.some((r) => r.validatedAt || r.validatedBy)) {
+      throw new BadRequestException("Absensi sudah divalidasi KM dan hanya dapat dilihat");
+    }
+
+    const tokenResult = await this.createSessionToken(sesi.id, actor.sub, {
+      tanggal: day,
+      pertemuanKe: body.pertemuanKe ?? null,
+    });
+
+    return {
+      ok: true,
+      date: day.toISOString().slice(0, 10),
+      pertemuanKe: body.pertemuanKe ?? null,
+      materi: records.find((r) => r.materi)?.materi ?? null,
+      sesi: {
+        id: sesi.id,
+        mataKuliah: sesi.course.nama,
+        kode: sesi.course.kode,
+        kelas: sesi.kelas,
+        jamMulai: sesi.jamMulai,
+        jamSelesai: sesi.jamSelesai,
+        lab: sesi.lab,
+      },
+      qrToken: tokenResult.token,
+      qrExpiresAt: tokenResult.expiresAt,
+      marked: records.length,
+    };
+  }
+
   /** Admin: KPI absensi keseluruhan. */
   async adminStats() {
     const [totalSessions, totalAttendance, hadirCount] = await Promise.all([

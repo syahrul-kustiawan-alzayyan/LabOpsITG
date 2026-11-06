@@ -69,6 +69,16 @@ export class AttendanceController {
     return this.svc.updateInstrukturSession(sesiId, body, (req as any).user);
   }
 
+  @Post("instruktur/sessions/:sesiId/qr")
+  @Roles("ADMIN_SYSTEM", "INSTRUKTUR")
+  instrukturSessionQr(
+    @Param("sesiId") sesiId: string,
+    @Body() body: { tanggal?: string; pertemuanKe?: number | null },
+    @Req() req: Request,
+  ) {
+    return this.svc.instrukturSessionQr(sesiId, body, (req as any).user);
+  }
+
   @Post("validate")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   validateScan(@Body() body: { qrToken: string }, @Req() req: Request) {

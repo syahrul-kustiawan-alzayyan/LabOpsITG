@@ -37,6 +37,18 @@ test.describe("Koreksi riwayat absensi", () => {
     expect(created.qrToken).toBeTruthy();
     await expect(page.locator('img[alt="QR code absensi"]')).toBeVisible({ timeout: 20_000 });
 
+    // Tutup panel QR, lalu tampilkan kembali QR dari riwayat sesi.
+    await page.getByRole("button", { name: /buat baru/i }).click();
+    const createdItem = page.locator(".notif").filter({ hasText: materi });
+    await expect(createdItem).toBeVisible();
+    await expect(createdItem.getByRole("button", { name: "Edit", exact: true })).toBeVisible();
+    const showQr = createdItem.getByRole("button", { name: /tampilkan qr/i });
+    await expect(showQr).toBeVisible();
+    await showQr.click();
+    await expect(page.locator('img[alt="QR code absensi"]')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".qr-info")).toContainText(materi);
+    await expect(page.locator(".alert-success").first()).toContainText(/ditampilkan ulang/i);
+
     // Tutup panel QR, lalu buka editor dari tautan Edit di dasbor instruktur.
     await page.getByRole("button", { name: /buat baru/i }).click();
     await page.goto("/instruktur");
@@ -73,6 +85,7 @@ test.describe("Koreksi riwayat absensi", () => {
     await expect(validated).toContainText("Tervalidasi KM");
     await expect(validated).toContainText("Hanya dapat dilihat");
     await expect(validated.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
+    await expect(validated.getByRole("button", { name: /tampilkan qr/i })).toHaveCount(0);
 
     // Backend juga harus menolak koreksi setelah validasi.
     const history = await (await page.request.get(`${API_URL}/attendance/instruktur/sessions`)).json();
@@ -87,6 +100,12 @@ test.describe("Koreksi riwayat absensi", () => {
       },
     });
     expect(patch.status()).toBe(400);
+
+    // QR sesi juga tidak boleh ditampilkan lagi setelah validasi.
+    const qrAfter = await page.request.post(`${API_URL}/attendance/instruktur/sessions/${created.sesi.id}/qr`, {
+      data: { tanggal: target.tanggal, pertemuanKe: target.pertemuanKe },
+    });
+    expect(qrAfter.status()).toBe(400);
 
     await logout(page);
   });

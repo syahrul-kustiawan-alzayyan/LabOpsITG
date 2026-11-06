@@ -452,6 +452,9 @@ export default function InstrukturDashboardPage() {
                   const editHref = `/attendance?editSesi=${encodeURIComponent(s.sesiId)}&editTanggal=${encodeURIComponent(
                     s.tanggal || "",
                   )}&editPertemuan=${s.pertemuanKe ?? ""}`;
+                  const qrHref = `/attendance?qrSesi=${encodeURIComponent(s.sesiId)}&qrTanggal=${encodeURIComponent(
+                    s.tanggal || "",
+                  )}&qrPertemuan=${s.pertemuanKe ?? ""}`;
                   return (
                     <div className="room-row" key={s.key}>
                       <div>
@@ -468,9 +471,14 @@ export default function InstrukturDashboardPage() {
                           {s.hadir}/{s.total} hadir
                         </span>
                         {canEdit ? (
-                          <Link href={editHref} className="btn btn-secondary btn-sm">
-                            Edit
-                          </Link>
+                          <>
+                            <Link href={editHref} className="btn btn-secondary btn-sm">
+                              Edit
+                            </Link>
+                            <Link href={qrHref} className="btn btn-ghost btn-sm">
+                              <Icon name="qr" size={13} /> QR
+                            </Link>
+                          </>
                         ) : (
                           <span className="badge badge-muted">Hanya lihat</span>
                         )}

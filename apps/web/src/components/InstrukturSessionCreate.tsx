@@ -116,7 +116,13 @@ export default function InstrukturAttendance() {
   const [editStatus, setEditStatus] = useState<Record<string, string>>({});
   const [editMateri, setEditMateri] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const [qrLoadingKey, setQrLoadingKey] = useState<string | null>(null);
   const [pendingEdit, setPendingEdit] = useState<{
+    sesiId: string;
+    tanggal: string | null;
+    pertemuanKe: number | null;
+  } | null>(null);
+  const [pendingQr, setPendingQr] = useState<{
     sesiId: string;
     tanggal: string | null;
     pertemuanKe: number | null;
@@ -187,6 +193,33 @@ export default function InstrukturAttendance() {
     setPendingEdit(null);
     window.history.replaceState({}, "", "/attendance");
   }, [pendingEdit, history]);
+
+  // Buka kembali QR sesi saat datang dari tautan "QR" di dasbor instruktur.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sesiId = params.get("qrSesi");
+    if (!sesiId) return;
+    const pertemuan = params.get("qrPertemuan");
+    setPendingQr({
+      sesiId,
+      tanggal: params.get("qrTanggal") || null,
+      pertemuanKe: pertemuan ? Number(pertemuan) : null,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!pendingQr || history.length === 0) return;
+    const target = history.find(
+      (h) =>
+        h.sesiId === pendingQr.sesiId &&
+        (!pendingQr.tanggal || h.tanggal === pendingQr.tanggal) &&
+        (pendingQr.pertemuanKe == null || h.pertemuanKe === pendingQr.pertemuanKe),
+    );
+    if (!target) return;
+    showSessionQr(target);
+    setPendingQr(null);
+    window.history.replaceState({}, "", "/attendance");
+  }, [pendingQr, history]);
 
   const isInstruktur = !!me?.subRoles?.includes("INSTRUKTUR");
 
@@ -288,6 +321,34 @@ export default function InstrukturAttendance() {
       setMsg({ type: "danger", text: e.message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function showSessionQr(session: SessionItem) {
+    setQrLoadingKey(session.key);
+    setMsg(null);
+    try {
+      const data = await api<any>(`/attendance/instruktur/sessions/${session.sesiId}/qr`, {
+        method: "POST",
+        body: { tanggal: session.tanggal, pertemuanKe: session.pertemuanKe },
+      });
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      const validateUrl = `${baseUrl}/attendance/validate?token=${encodeURIComponent(data.qrToken)}`;
+      const dataUrl = await QRCode.toDataURL(validateUrl, {
+        width: 300,
+        margin: 2,
+        color: { dark: "#0f4c4c", light: "#ffffff" },
+      });
+      setQrResult(data);
+      setQrDataUrl(dataUrl);
+      setMsg({
+        type: "success",
+        text: "QR code sesi ditampilkan ulang. Berlaku 15 menit untuk validasi KM kelas.",
+      });
+    } catch (e: any) {
+      setMsg({ type: "danger", text: e.message });
+    } finally {
+      setQrLoadingKey(null);
     }
   }
 
@@ -775,14 +836,24 @@ export default function InstrukturAttendance() {
                                     {s.hadir}/{s.total} hadir
                                   </div>
                                   {canEdit ? (
-                                    <button
-                                      type="button"
-                                      className="btn btn-secondary btn-sm"
-                                      style={{ marginTop: 8 }}
-                                      onClick={() => startEdit(s)}
-                                    >
-                                      Edit
-                                    </button>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, alignItems: "stretch" }}>
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => startEdit(s)}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => showSessionQr(s)}
+                                        disabled={qrLoadingKey === s.key}
+                                      >
+                                        <Icon name="qr" size={13} />{" "}
+                                        {qrLoadingKey === s.key ? "Memuat…" : "Tampilkan QR"}
+                                      </button>
+                                    </div>
                                   ) : (
                                     <div className="card-note" style={{ marginTop: 6, fontSize: 11.5 }}>
                                       Hanya dapat dilihat
