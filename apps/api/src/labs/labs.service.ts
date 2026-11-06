@@ -6,7 +6,11 @@ import { AuditService } from "../audit/audit.service";
 export class LabsService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
 
-  findAll() { return this.prisma.lab.findMany({ where: { deletedAt: null }, orderBy: { kode: "asc" } }); }
+  findAll(q: { periodeId?: string }) {
+    const where: any = { deletedAt: null };
+    if (q?.periodeId) where.periodeId = q.periodeId;
+    return this.prisma.lab.findMany({ where, orderBy: { kode: "asc" } });
+  }
 
   findOne(id: string) { return this.prisma.lab.findUnique({ where: { id } }); }
 

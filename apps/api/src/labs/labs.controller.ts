@@ -10,7 +10,7 @@ export class LabsController {
   constructor(private labs: LabsService) {}
 
   @Get()
-  findAll() { return this.labs.findAll(); }
+  findAll(@Query() q: any) { return this.labs.findAll(q); }
 
   @Get(":id")
   findOne(@Param("id") id: string) { return this.labs.findOne(id); }

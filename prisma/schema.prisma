@@ -202,6 +202,7 @@ model Periode {
   recruitmentPeriods RecruitmentPeriod[]
   users       User[]
   inventoryItems InventoryItem[]
+  labs        Lab[]
 
   @@index([kode])
   @@index([isCurrent])
@@ -225,6 +226,8 @@ model Lab {
   issues     Issue[]
   attendances Attendance[]
   inventory  InventoryItem[]
+  periode    Periode?           @relation(fields: [periodeId], references: [id])
+  periodeId  String?
 }
 
 model Schedule {

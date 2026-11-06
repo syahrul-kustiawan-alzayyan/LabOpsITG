@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { labDisplayName, labRoom } from "@/lib/lab-label";
 
@@ -25,8 +25,10 @@ export default function LabsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const per = withPeriode({});
+      const labsUrl = "/labs" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
       const [labList, sched, meRes] = await Promise.all([
-        api<any[]>("/labs"),
+        api<any[]>(labsUrl),
         api<any[]>("/schedules").catch(() => []),
         api<{ user: any }>("/auth/me"),
       ]);
@@ -41,10 +43,17 @@ export default function LabsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getSelectedPeriodeId()]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Muat ulang lab saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
   }, [load]);
 
   const stats = useMemo(() => {
