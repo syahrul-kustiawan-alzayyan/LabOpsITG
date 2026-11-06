@@ -173,6 +173,14 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
       } catch {
         /* abaikan jika localStorage tidak tersedia */
       }
+      // Beri tahu semua halaman untuk memuat ulang data sesuai periode baru
+      try {
+        window.dispatchEvent(
+          new CustomEvent("labops:periode-changed", { detail: { periodeId } }),
+        );
+      } catch {
+        /* abaikan */
+      }
     } catch (e: any) {
       console.error("Gagal mengganti periode:", e?.message);
     } finally {
@@ -296,7 +304,7 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
             >
               {periods.map((p) => (
                 <option key={p.id} value={p.id} disabled={p.deletedAt}>
-                  {p.nama} {p.isCurrent ? "· Aktif" : ""}
+                  {p.nama}
                 </option>
               ))}
             </select>

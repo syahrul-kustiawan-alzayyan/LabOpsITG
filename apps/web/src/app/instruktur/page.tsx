@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api, withPeriode } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon, IconName } from "@/components/Icon";
 import { ScheduleGrid } from "@/components/ScheduleGrid";
 
@@ -88,35 +88,47 @@ export default function InstrukturDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     let alive = true;
-    async function load() {
-      try {
-        const per = withPeriode({});
-        const sessionsUrl = "/attendance/instruktur/sessions" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
-        const schedulesUrl = "/schedules/mine" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
-        const [meRes, courseRes, sessionRes, scheduleRes] = await Promise.all([
-          api<{ user: any }>("/auth/me"),
-          api<Course[]>("/attendance/instruktur/courses"),
-          api<SessionGroup[]>(sessionsUrl),
-          api<ScheduleItem[]>(schedulesUrl).catch(() => []),
-        ]);
-        if (!alive) return;
-        setMe(meRes.user);
-        setCourses(courseRes);
-        setSessions(sessionRes);
-        setSchedules(scheduleRes);
-      } catch (e: any) {
-        if (alive) setError(e?.message || "Tidak dapat memuat dasbor instruktur.");
-      } finally {
-        if (alive) setLoading(false);
-      }
+    try {
+      const per = withPeriode({});
+      const sessionsUrl = "/attendance/instruktur/sessions" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const schedulesUrl = "/schedules/mine" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const [meRes, courseRes, sessionRes, scheduleRes] = await Promise.all([
+        api<{ user: any }>("/auth/me"),
+        api<Course[]>("/attendance/instruktur/courses"),
+        api<SessionGroup[]>(sessionsUrl),
+        api<ScheduleItem[]>(schedulesUrl).catch(() => []),
+      ]);
+      if (!alive) return;
+      setMe(meRes.user);
+      setCourses(courseRes);
+      setSessions(sessionRes);
+      setSchedules(scheduleRes);
+    } catch (e: any) {
+      if (alive) setError(e?.message || "Tidak dapat memuat dasbor instruktur.");
+    } finally {
+      if (alive) setLoading(false);
     }
+  }, [getSelectedPeriodeId()]);
+
+  useEffect(() => {
     load();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  }, [load]);
+
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [load]);
+
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [load]);
 
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
   const todayDow = now.getDay();

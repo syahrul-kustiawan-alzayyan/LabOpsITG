@@ -76,10 +76,17 @@ export default function KaprodiPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [me]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
   }, [load]);
 
   const openIssues = issues.filter((i: any) => !["SELESAI", "DITOLAK"].includes(i.status));

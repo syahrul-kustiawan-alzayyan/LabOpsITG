@@ -80,6 +80,13 @@ export default function SchedulesPage() {
     load();
   }, [load]);
 
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [load]);
+
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);

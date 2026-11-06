@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, withPeriode } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import QRCode from "qrcode";
@@ -162,12 +162,19 @@ export default function InstrukturAttendance() {
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [getSelectedPeriodeId()]);
 
   useEffect(() => {
     load();
     loadHistory();
   }, [load, loadHistory]);
+
+  // Muat ulang riwayat saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => loadHistory();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [loadHistory]);
 
   // Buka editor otomatis saat datang dari tautan "Edit" di dasbor instruktur.
   useEffect(() => {

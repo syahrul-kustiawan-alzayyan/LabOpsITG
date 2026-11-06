@@ -68,6 +68,13 @@ export default function AttendancePage() {
     load();
   }, [load]);
 
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [load]);
+
   async function scan(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);

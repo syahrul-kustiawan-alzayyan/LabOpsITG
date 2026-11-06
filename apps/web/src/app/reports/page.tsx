@@ -92,6 +92,13 @@ export default function ReportsPage() {
     loadDash();
   }, [loadDash]);
 
+  // Muat ulang dashboard saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => loadDash();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [loadDash]);
+
   useEffect(() => {
     let alive = true;
     const params = new URLSearchParams(withPeriode({ weekStart }));
@@ -106,6 +113,27 @@ export default function ReportsPage() {
     return () => {
       alive = false;
     };
+  }, [weekStart, filterLab]);
+
+  // Muat ulang laporan mingguan saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => {
+      let alive = true;
+      const params = new URLSearchParams(withPeriode({ weekStart }));
+      if (filterLab) params.set("labId", filterLab);
+      api<any>(`/reports/weekly?${params.toString()}`)
+        .then((d) => {
+          if (alive) setWeekly(d);
+        })
+        .catch((e) => {
+          if (alive) setMsg(e.message);
+        });
+      return () => {
+        alive = false;
+      };
+    };
+    window.addEventListener("labops:periode-changed", handler as any);
+    return () => window.removeEventListener("labops:periode-changed", handler as any);
   }, [weekStart, filterLab]);
 
   const sums = useMemo(() => {

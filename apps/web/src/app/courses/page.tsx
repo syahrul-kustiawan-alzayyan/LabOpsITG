@@ -111,6 +111,13 @@ export default function CoursesPage() {
     load();
   }, [load]);
 
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [load]);
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return courses.filter((c) => {

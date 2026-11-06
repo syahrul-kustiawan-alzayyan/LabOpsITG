@@ -69,6 +69,13 @@ export default function BookingsPage() {
     load();
   }, [filterStatus]);
 
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [load, filterStatus]);
+
   useEffect(() => {
     if (!form.labId || !form.tanggal) {
       setAvailability(null);

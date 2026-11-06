@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api, withPeriode } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon, IconName } from "@/components/Icon";
 import { labDisplayName, labRoom } from "@/lib/lab-label";
 
@@ -46,51 +46,56 @@ export default function KoordinatorPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     let alive = true;
-    async function load() {
-      try {
-        const meRes = await api<{ user: any }>("/auth/me");
-        if (!alive) return;
-        setMe(meRes.user);
+    try {
+      const meRes = await api<{ user: any }>("/auth/me");
+      if (!alive) return;
+      setMe(meRes.user);
 
-        const per = withPeriode({});
-        const todayUrl = "/reports/today" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
-        const dashUrl = "/reports/dashboard" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
-        const coursesUrl = "/courses" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
-        const [t, d, l, c, inv, p, apps, pendingBookings, issueList] = await Promise.all([
-          api<any>(todayUrl),
-          api<any>(dashUrl),
-          api<any[]>("/labs"),
-          api<any[]>(coursesUrl),
-          api<any[]>("/inventory/summary").catch(() => []),
-          api<any[]>("/recruitment/periods").catch(() => []),
-          api<any[]>("/recruitment/applications").catch(() => []),
-          api<any[]>("/bookings?status=DIAJUKAN&limit=5").catch(() => []),
-          api<any[]>("/issues?limit=8").catch(() => []),
-        ]);
-        if (!alive) return;
+      const per = withPeriode({});
+      const todayUrl = "/reports/today" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const dashUrl = "/reports/dashboard" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const coursesUrl = "/courses" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const [t, d, l, c, inv, p, apps, pendingBookings, issueList] = await Promise.all([
+        api<any>(todayUrl),
+        api<any>(dashUrl),
+        api<any[]>("/labs"),
+        api<any[]>(coursesUrl),
+        api<any[]>("/inventory/summary").catch(() => []),
+        api<any[]>("/recruitment/periods").catch(() => []),
+        api<any[]>("/recruitment/applications").catch(() => []),
+        api<any[]>("/bookings?status=DIAJUKAN&limit=5").catch(() => []),
+        api<any[]>("/issues?limit=8").catch(() => []),
+      ]);
+      if (!alive) return;
 
-        setToday(t);
-        setDashboard(d);
-        setLabs(l);
-        setCourses(c);
-        setAssetSummary(inv);
-        setPeriods(p);
-        setApplications(apps);
-        setPending(pendingBookings);
-        setIssues(issueList.filter((i) => !["SELESAI", "DITOLAK"].includes(i.status)));
-      } catch (e: any) {
-        if (alive) setError(e?.message || "Tidak dapat memuat dasbor koordinator.");
-      } finally {
-        if (alive) setLoading(false);
-      }
+      setToday(t);
+      setDashboard(d);
+      setLabs(l);
+      setCourses(c);
+      setAssetSummary(inv);
+      setPeriods(p);
+      setApplications(apps);
+      setPending(pendingBookings);
+      setIssues(issueList.filter((i) => !["SELESAI", "DITOLAK"].includes(i.status)));
+    } catch (e: any) {
+      if (alive) setError(e?.message || "Tidak dapat memuat dasbor koordinator.");
+    } finally {
+      if (alive) setLoading(false);
     }
+  }, [getSelectedPeriodeId()]);
+
+  useEffect(() => {
     load();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  }, [load]);
+
+  // Muat ulang data saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
+  }, [load]);
 
   const activeCourses = useMemo(
     () => courses.filter((c) => c.status === "AKTIF"),
