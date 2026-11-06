@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Param, Query, UseGuards, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Post, Param, Query, UseGuards, Req } from "@nestjs/common";
 import { Request } from "express";
 import { AttendanceService } from "./attendance.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -57,6 +57,16 @@ export class AttendanceController {
     @Req() req: Request,
   ) {
     return this.svc.createInstrukturSession(body, (req as any).user);
+  }
+
+  @Patch("instruktur/sessions/:sesiId")
+  @Roles("ADMIN_SYSTEM", "INSTRUKTUR")
+  updateInstrukturSession(
+    @Param("sesiId") sesiId: string,
+    @Body() body: { tanggal?: string; pertemuanKe?: number | null; materi?: string | null; records: { id: string; status: string }[] },
+    @Req() req: Request,
+  ) {
+    return this.svc.updateInstrukturSession(sesiId, body, (req as any).user);
   }
 
   @Post("validate")

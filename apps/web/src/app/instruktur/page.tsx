@@ -46,6 +46,7 @@ type SessionGroup = {
   total: number;
   hadir: number;
   validated: number;
+  canEdit?: boolean;
   members: Array<{ id: string; nama: string; status: string; validated: boolean }>;
 };
 
@@ -447,6 +448,10 @@ export default function InstrukturDashboardPage() {
               <div className="room-list">
                 {sessions.slice(0, 6).map((s) => {
                   const pct = s.total ? Math.round((s.hadir / s.total) * 100) : 0;
+                  const canEdit = s.canEdit ?? s.validated === 0;
+                  const editHref = `/attendance?editSesi=${encodeURIComponent(s.sesiId)}&editTanggal=${encodeURIComponent(
+                    s.tanggal || "",
+                  )}&editPertemuan=${s.pertemuanKe ?? ""}`;
                   return (
                     <div className="room-row" key={s.key}>
                       <div>
@@ -458,9 +463,18 @@ export default function InstrukturDashboardPage() {
                           {s.labKode || "Lab"} · {s.jamMulai}–{s.jamSelesai}
                         </div>
                       </div>
-                      <span className={`badge ${attendanceBadge(s.total, pct)}`}>
-                        {s.hadir}/{s.total} hadir
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span className={`badge ${attendanceBadge(s.total, pct)}`}>
+                          {s.hadir}/{s.total} hadir
+                        </span>
+                        {canEdit ? (
+                          <Link href={editHref} className="btn btn-secondary btn-sm">
+                            Edit
+                          </Link>
+                        ) : (
+                          <span className="badge badge-muted">Hanya lihat</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

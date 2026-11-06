@@ -743,6 +743,7 @@ export class AttendanceService {
       if (row.validatedAt) group.validated += 1;
       group.members.push({
         id: row.user.id,
+        attendanceId: row.id,
         nama: row.user.nama,
         status: row.status,
         validated: !!row.validatedAt,
@@ -750,7 +751,100 @@ export class AttendanceService {
       if (!group.materi && row.materi) group.materi = row.materi;
     }
 
-    return [...groups.values()].slice(0, limit);
+    return [...groups.values()].slice(0, limit).map((group) => ({
+      ...group,
+      // Data hanya boleh dikoreksi selama belum ada satu pun catatan yang divalidasi KM.
+      canEdit: group.validated === 0,
+    }));
+  }
+
+  /**
+   * Instruktur mengoreksi status kehadiran/materi pada satu sesi selama KM
+   * belum memvalidasi. Setelah ada catatan tervalidasi, data bersifat baca-saja.
+   */
+  async updateInstrukturSession(
+    sesiId: string,
+    body: {
+      tanggal?: string;
+      pertemuanKe?: number | null;
+      materi?: string | null;
+      records: { id: string; status: string }[];
+    },
+    actor: SessionActor,
+  ) {
+    if (!Array.isArray(body?.records) || body.records.length === 0) {
+      throw new BadRequestException("Tidak ada data absensi yang akan diperbarui");
+    }
+    if (!body.tanggal) throw new BadRequestException("Tanggal absensi wajib diisi");
+    const day = startOfJakartaDay(body.tanggal);
+    if (Number.isNaN(day.getTime())) throw new BadRequestException("Tanggal absensi tidak valid");
+
+    const sesi = await this.prisma.schedule.findUnique({
+      where: { id: sesiId },
+      include: { course: { select: { id: true, instrukturId: true } } },
+    });
+    if (!sesi || sesi.deletedAt) throw new NotFoundException("Sesi absensi tidak ditemukan");
+    if (!sesi.course) throw new BadRequestException("Sesi belum tertaut dengan mata kuliah");
+
+    if (actor.role !== "ADMIN_SYSTEM" && sesi.course.instrukturId !== actor.sub) {
+      throw new ForbiddenException("Hanya instruktur pengampu mata kuliah ini yang dapat mengoreksi absensi");
+    }
+
+    const records = await this.prisma.attendance.findMany({
+      where: {
+        sesiId,
+        tanggal: day,
+        pertemuanKe: body.pertemuanKe ?? null,
+        deletedAt: null,
+      },
+    });
+    if (records.length === 0) throw new NotFoundException("Catatan absensi tidak ditemukan");
+    if (records.some((r) => r.validatedAt || r.validatedBy)) {
+      throw new BadRequestException("Absensi sudah divalidasi KM dan hanya dapat dilihat");
+    }
+
+    const allowedIds = new Set(records.map((r) => r.id));
+    const statusById = new Map<string, string>();
+    for (const record of body.records) {
+      if (!record?.id || !allowedIds.has(record.id)) {
+        throw new BadRequestException("Catatan absensi tidak sesuai dengan sesi ini");
+      }
+      if (!ATTENDANCE_STATUSES.includes(record.status as TeamStatus)) {
+        throw new BadRequestException("Status absensi tidak valid");
+      }
+      statusById.set(record.id, record.status);
+    }
+
+    const materi = body.materi !== undefined ? body.materi?.trim() || null : undefined;
+    for (const record of records) {
+      const status = statusById.get(record.id) ?? record.status;
+      const updated = await this.prisma.attendance.update({
+        where: { id: record.id },
+        data: {
+          status: status as any,
+          ...(materi !== undefined ? { materi } : {}),
+          correctedBy: actor.sub,
+          correctionReason: "Koreksi absensi instruktur sebelum validasi KM",
+          oldValue: record.status,
+        },
+      });
+      await this.audit.log({
+        actorId: actor.sub,
+        action: "INSTRUKTUR_SESSION_UPDATE",
+        objectType: "Attendance",
+        objectId: record.id,
+        oldValue: { status: record.status, materi: record.materi },
+        newValue: { status: updated.status, materi: updated.materi, sesiId, tanggal: day, pertemuanKe: body.pertemuanKe ?? null },
+      });
+    }
+
+    return {
+      ok: true,
+      sesiId,
+      date: day.toISOString().slice(0, 10),
+      pertemuanKe: body.pertemuanKe ?? null,
+      updated: records.length,
+    };
   }
 
   /** Admin: KPI absensi keseluruhan. */

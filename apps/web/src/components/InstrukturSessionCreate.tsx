@@ -91,7 +91,8 @@ type SessionItem = {
   total: number;
   hadir: number;
   validated: number;
-  members: Array<{ id: string; nama: string; status: string; validated: boolean }>;
+  canEdit?: boolean;
+  members: Array<{ id: string; attendanceId: string; nama: string; status: string; validated: boolean }>;
 };
 
 export default function InstrukturAttendance() {
@@ -111,6 +112,15 @@ export default function InstrukturAttendance() {
   const [msg, setMsg] = useState<{ type: string; text: string } | null>(null);
   const [history, setHistory] = useState<SessionItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [editing, setEditing] = useState<SessionItem | null>(null);
+  const [editStatus, setEditStatus] = useState<Record<string, string>>({});
+  const [editMateri, setEditMateri] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [pendingEdit, setPendingEdit] = useState<{
+    sesiId: string;
+    tanggal: string | null;
+    pertemuanKe: number | null;
+  } | null>(null);
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Jakarta",
     year: "numeric",
@@ -150,6 +160,33 @@ export default function InstrukturAttendance() {
     load();
     loadHistory();
   }, [load, loadHistory]);
+
+  // Buka editor otomatis saat datang dari tautan "Edit" di dasbor instruktur.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sesiId = params.get("editSesi");
+    if (!sesiId) return;
+    const pertemuan = params.get("editPertemuan");
+    setPendingEdit({
+      sesiId,
+      tanggal: params.get("editTanggal") || null,
+      pertemuanKe: pertemuan ? Number(pertemuan) : null,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!pendingEdit || history.length === 0) return;
+    const target = history.find(
+      (h) =>
+        h.sesiId === pendingEdit.sesiId &&
+        (!pendingEdit.tanggal || h.tanggal === pendingEdit.tanggal) &&
+        (pendingEdit.pertemuanKe == null || h.pertemuanKe === pendingEdit.pertemuanKe),
+    );
+    if (!target) return;
+    startEdit(target);
+    setPendingEdit(null);
+    window.history.replaceState({}, "", "/attendance");
+  }, [pendingEdit, history]);
 
   const isInstruktur = !!me?.subRoles?.includes("INSTRUKTUR");
 
@@ -254,6 +291,51 @@ export default function InstrukturAttendance() {
     }
   }
 
+  function startEdit(session: SessionItem) {
+    setEditing(session);
+    setEditMateri(session.materi || "");
+    setEditStatus(
+      Object.fromEntries(session.members.map((m) => [m.attendanceId, m.status])),
+    );
+    setMsg(null);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setEditStatus({});
+    setEditMateri("");
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    setEditSaving(true);
+    setMsg(null);
+    try {
+      await api(`/attendance/instruktur/sessions/${editing.sesiId}`, {
+        method: "PATCH",
+        body: {
+          tanggal: editing.tanggal,
+          pertemuanKe: editing.pertemuanKe,
+          materi: editMateri.trim() || null,
+          records: editing.members.map((m) => ({
+            id: m.attendanceId,
+            status: editStatus[m.attendanceId] || m.status,
+          })),
+        },
+      });
+      setMsg({
+        type: "success",
+        text: "Data absensi diperbarui. Perubahan masih dapat dilakukan sampai KM memvalidasi.",
+      });
+      cancelEdit();
+      await loadHistory();
+    } catch (e: any) {
+      setMsg({ type: "danger", text: e.message });
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function downloadQr() {
     if (!qrDataUrl) return;
     const link = document.createElement("a");
@@ -320,9 +402,9 @@ export default function InstrukturAttendance() {
                 <span style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}><Icon name="qr" size={14} /></span> Menunggu Validasi
               </span>
               <span className="ops-stat-value">
-                {history.filter((h) => h.validated < h.total).length}
+                {history.filter((h) => h.validated === 0).length}
               </span>
-              <span className="ops-stat-note">Belum dipindai KM kelas</span>
+              <span className="ops-stat-note">Masih dapat diedit sebelum validasi KM</span>
             </div>
           </div>
 
@@ -569,44 +651,146 @@ export default function InstrukturAttendance() {
                     ) : (
                       history.map((s) => {
                         const fullyValidated = s.total > 0 && s.validated >= s.total;
+                        const partiallyValidated = s.validated > 0 && !fullyValidated;
+                        const canEdit = s.canEdit ?? s.validated === 0;
+                        const isEditing = editing?.key === s.key;
                         return (
                           <div key={s.key} className="notif" style={{ cursor: "default" }}>
-                            <div className="session-item">
-                              <div className="session-main">
-                                <strong>{s.mataKuliah}</strong>
-                                <div className="notif-meta">
-                                  <span>
-                                    Kelas {s.kelas}
-                                    {s.pertemuanKe != null ? ` · Pertemuan ${s.pertemuanKe}` : ""}
-                                  </span>
-                                  <span>{formatTanggal(s.tanggal)}</span>
-                                </div>
-                                {s.materi && (
-                                  <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4 }}>
-                                    {s.materi}
+                            {isEditing ? (
+                              <div className="session-item" style={{ display: "block", width: "100%" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                                  <div>
+                                    <strong>Edit absensi · {s.mataKuliah}</strong>
+                                    <div className="notif-meta">
+                                      <span>
+                                        Kelas {s.kelas}
+                                        {s.pertemuanKe != null ? ` · Pertemuan ${s.pertemuanKe}` : ""}
+                                      </span>
+                                      <span>{formatTanggal(s.tanggal)}</span>
+                                    </div>
                                   </div>
-                                )}
-                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7 }}>
+                                  <span className="badge badge-warning">Menunggu KM</span>
+                                </div>
+
+                                <div className="field" style={{ marginTop: 12, marginBottom: 12 }}>
+                                  <label htmlFor={`edit-materi-${s.key}`}>Materi ajar</label>
+                                  <textarea
+                                    id={`edit-materi-${s.key}`}
+                                    className="input"
+                                    rows={2}
+                                    value={editMateri}
+                                    onChange={(e) => setEditMateri(e.target.value)}
+                                    placeholder="Materi yang dibahas pada pertemuan ini"
+                                  />
+                                </div>
+
+                                <div className="team-member-list">
                                   {s.members.map((m) => (
-                                    <span
-                                      key={m.id}
-                                      className={`badge ${STATUS_BADGE[m.status] || "badge-muted"}`}
-                                      style={{ fontSize: 10.5 }}
-                                    >
-                                      {m.nama.split(" ")[0]} · {m.status.replace("_", " ").toLowerCase()}
-                                    </span>
+                                    <div key={m.attendanceId} className="team-member-row">
+                                      <span className="team-avatar" aria-hidden="true">{initials(m.nama)}</span>
+                                      <div className="team-member-info">
+                                        <strong>{m.nama}</strong>
+                                        <span>Status kehadiran</span>
+                                      </div>
+                                      <select
+                                        className="input team-status-select"
+                                        aria-label={`Status ${m.nama}`}
+                                        value={editStatus[m.attendanceId] || m.status}
+                                        onChange={(e) =>
+                                          setEditStatus((prev) => ({ ...prev, [m.attendanceId]: e.target.value }))
+                                        }
+                                      >
+                                        {STATUS_OPTIONS.map((o) => (
+                                          <option key={o.value} value={o.value}>{o.label}</option>
+                                        ))}
+                                      </select>
+                                    </div>
                                   ))}
                                 </div>
-                              </div>
-                              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                <span className={`badge ${fullyValidated ? "badge-success" : "badge-plain"}`}>
-                                  {fullyValidated ? "Tervalidasi KM" : "Menunggu KM"}
-                                </span>
-                                <div className="card-note" style={{ marginTop: 6, fontSize: 11.5, whiteSpace: "nowrap" }}>
-                                  {s.hadir}/{s.total} hadir
+
+                                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={cancelEdit}
+                                    disabled={editSaving}
+                                  >
+                                    Batal
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    onClick={saveEdit}
+                                    disabled={editSaving}
+                                  >
+                                    {editSaving ? "Menyimpan…" : "Simpan perubahan"}
+                                  </button>
                                 </div>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="session-item">
+                                <div className="session-main">
+                                  <strong>{s.mataKuliah}</strong>
+                                  <div className="notif-meta">
+                                    <span>
+                                      Kelas {s.kelas}
+                                      {s.pertemuanKe != null ? ` · Pertemuan ${s.pertemuanKe}` : ""}
+                                    </span>
+                                    <span>{formatTanggal(s.tanggal)}</span>
+                                  </div>
+                                  {s.materi && (
+                                    <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4 }}>
+                                      {s.materi}
+                                    </div>
+                                  )}
+                                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7 }}>
+                                    {s.members.map((m) => (
+                                      <span
+                                        key={m.id}
+                                        className={`badge ${STATUS_BADGE[m.status] || "badge-muted"}`}
+                                        style={{ fontSize: 10.5 }}
+                                      >
+                                        {m.nama.split(" ")[0]} · {m.status.replace("_", " ").toLowerCase()}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                  <span
+                                    className={`badge ${
+                                      fullyValidated
+                                        ? "badge-success"
+                                        : partiallyValidated
+                                          ? "badge-warning"
+                                          : "badge-plain"
+                                    }`}
+                                  >
+                                    {fullyValidated
+                                      ? "Tervalidasi KM"
+                                      : partiallyValidated
+                                        ? "Sebagian tervalidasi"
+                                        : "Menunggu KM"}
+                                  </span>
+                                  <div className="card-note" style={{ marginTop: 6, fontSize: 11.5, whiteSpace: "nowrap" }}>
+                                    {s.hadir}/{s.total} hadir
+                                  </div>
+                                  {canEdit ? (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      style={{ marginTop: 8 }}
+                                      onClick={() => startEdit(s)}
+                                    >
+                                      Edit
+                                    </button>
+                                  ) : (
+                                    <div className="card-note" style={{ marginTop: 6, fontSize: 11.5 }}>
+                                      Hanya dapat dilihat
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })
