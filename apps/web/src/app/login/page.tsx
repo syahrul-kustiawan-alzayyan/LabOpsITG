@@ -39,6 +39,7 @@ export default function LoginPage() {
       try {
         const me = await api<{ user: any }>("/auth/me");
         if (me?.user?.role === "COORDINATOR") fallback = "/koordinator";
+        else if (me?.user?.role === "KAPRODI") fallback = "/kaprodi";
         else if (["INSTRUKTUR", "ASISTEN_DOSEN"].includes(me?.user?.role)) fallback = "/instruktur";
       } catch {
         /* tetap arahkan ke dasbor umum bila sesi belum terbaca */
@@ -58,12 +59,12 @@ export default function LoginPage() {
     setError("");
   }
 
-  function fill(role: "admin" | "koordinator" | "dosen" | "mahasiswa") {
+  function fill(role: "admin" | "koordinator" | "kaprodi-tif" | "kaprodi-sis") {
     const map = {
       admin: ["admin@labops.local", "admin123"],
       koordinator: ["koordinator@labops.local", "koord123"],
-      dosen: ["drdedekurniadimkom@labops.local", "dosen123"],
-      mahasiswa: ["mhs01@labops.local", "mhs123"],
+      "kaprodi-tif": ["kaprodi-tif@labops.local", "kaprodi123"],
+      "kaprodi-sis": ["kaprodi-sis@labops.local", "kaprodi123"],
     } as const;
     fillCredential(map[role][0], map[role][1]);
   }
@@ -175,11 +176,11 @@ export default function LoginPage() {
               <button type="button" className="chip" onClick={() => fill("koordinator")}>
                 Koordinator
               </button>
-              <button type="button" className="chip" onClick={() => fill("dosen")}>
-                Dosen
+              <button type="button" className="chip" onClick={() => fill("kaprodi-tif")}>
+                Kaprodi TIF
               </button>
-              <button type="button" className="chip" onClick={() => fill("mahasiswa")}>
-                Mahasiswa
+              <button type="button" className="chip" onClick={() => fill("kaprodi-sis")}>
+                Kaprodi SIS
               </button>
             </div>
 

@@ -38,8 +38,8 @@ test.describe("Halaman publik", () => {
 
   test("tombol akun demo mengisi formulir", async ({ page }) => {
     await page.goto("/login");
-    await page.getByRole("button", { name: "Mahasiswa", exact: true }).click();
-    await expect(page.locator("#email")).toHaveValue("mhs01@labops.local");
-    await expect(page.locator("#password")).toHaveValue("mhs123");
+    await page.getByRole("button", { name: "Admin", exact: true }).click();
+    await expect(page.locator("#email")).toHaveValue("admin@labops.local");
+    await expect(page.locator("#password")).toHaveValue("admin123");
   });
 });
