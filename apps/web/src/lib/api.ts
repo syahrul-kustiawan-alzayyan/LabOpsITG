@@ -91,3 +91,20 @@ export function fileUrl(path?: string | null) {
   if (!path) return "";
   return path.startsWith("http") ? path : `${API_BASE}${path}`;
 }
+
+/** Mengembalikan ID periode yang dipilih pengguna dari localStorage. */
+export function getSelectedPeriodeId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("labops.selectedPeriodeId") || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Menambahkan parameter periodeId ke URL query jika ada periode yang dipilih. */
+export function withPeriode(params: Record<string, string | undefined>): Record<string, string | undefined> {
+  const periodeId = getSelectedPeriodeId();
+  if (periodeId) params.periodeId = periodeId;
+  return params;
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon, IconName } from "@/components/Icon";
 import { labDisplayName, labRoom } from "@/lib/lab-label";
 
@@ -54,11 +54,15 @@ export default function KoordinatorPage() {
         if (!alive) return;
         setMe(meRes.user);
 
+        const per = withPeriode({});
+        const todayUrl = "/reports/today" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+        const dashUrl = "/reports/dashboard" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+        const coursesUrl = "/courses" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
         const [t, d, l, c, inv, p, apps, pendingBookings, issueList] = await Promise.all([
-          api<any>("/reports/today"),
-          api<any>("/reports/dashboard"),
+          api<any>(todayUrl),
+          api<any>(dashUrl),
           api<any[]>("/labs"),
-          api<any[]>("/courses"),
+          api<any[]>(coursesUrl),
           api<any[]>("/inventory/summary").catch(() => []),
           api<any[]>("/recruitment/periods").catch(() => []),
           api<any[]>("/recruitment/applications").catch(() => []),

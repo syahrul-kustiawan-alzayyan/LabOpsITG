@@ -7,22 +7,23 @@ export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
   /** Ringkasan operasional untuk papan triage hari ini. */
-  async today() {
+  async today(periodeId?: string) {
     const today = todayJakarta();
     const tomorrow = addDays(today, 1);
     const hari = dayOfWeekJakarta(today);
+    const perFilter = periodeId ? { periodeId } : {};
 
     const [pendingBookings, approvedToday, openIssues, overdueIssues, sessions, attendanceToday, labsActive] = await Promise.all([
-      this.prisma.booking.count({ where: { status: "DIAJUKAN", deletedAt: null } }),
-      this.prisma.booking.count({ where: { status: "DISETUJUI", deletedAt: null, tanggal: { gte: today, lt: tomorrow } } }),
+      this.prisma.booking.count({ where: { status: "DIAJUKAN", deletedAt: null, ...perFilter } }),
+      this.prisma.booking.count({ where: { status: "DISETUJUI", deletedAt: null, tanggal: { gte: today, lt: tomorrow }, ...perFilter } }),
       this.prisma.issue.count({ where: { deletedAt: null, status: { in: ["BARU", "DIVERIFIKASI", "DALAM_PENANGANAN"] } } }),
       this.prisma.issue.count({ where: { deletedAt: null, status: { notIn: ["SELESAI", "DITOLAK"] }, dueAt: { lt: today } } }),
       this.prisma.schedule.findMany({
-        where: { hari, deletedAt: null, status: "AKTIF", tanggalMulai: { lte: today }, tanggalSelesai: { gte: today } },
+        where: { hari, deletedAt: null, status: "AKTIF", tanggalMulai: { lte: today }, tanggalSelesai: { gte: today }, ...perFilter },
         include: { lab: { select: { kode: true, nama: true } }, pengampu: { select: { nama: true } } },
         orderBy: { jamMulai: "asc" },
       }),
-      this.prisma.attendance.count({ where: { scannedAt: { gte: today, lt: tomorrow }, deletedAt: null } }),
+      this.prisma.attendance.count({ where: { scannedAt: { gte: today, lt: tomorrow }, deletedAt: null, ...perFilter } }),
       this.prisma.lab.count({ where: { status: "AKTIF", deletedAt: null } }),
     ]);
 
@@ -44,14 +45,16 @@ export class ReportsService {
     };
   }
 
-  async dashboard() {
+  async dashboard(periodeId?: string) {
+    const perFilter = periodeId ? { periodeId } : {};
+
     const [users, labs, schedules, bookings, issues, attendance, inventory] = await Promise.all([
       this.prisma.user.count({ where: { deletedAt: null, status: "ACTIVE" } }),
       this.prisma.lab.count({ where: { deletedAt: null, status: "AKTIF" } }),
-      this.prisma.schedule.count({ where: { deletedAt: null, status: "AKTIF" } }),
-      this.prisma.booking.groupBy({ by: ["status"], where: { deletedAt: null }, _count: { _all: true } }),
+      this.prisma.schedule.count({ where: { deletedAt: null, status: "AKTIF", ...perFilter } }),
+      this.prisma.booking.groupBy({ by: ["status"], where: { deletedAt: null, ...perFilter }, _count: { _all: true } }),
       this.prisma.issue.groupBy({ by: ["status"], where: { deletedAt: null }, _count: { _all: true } }),
-      this.prisma.attendance.groupBy({ by: ["status"], _count: { _all: true } }),
+      this.prisma.attendance.groupBy({ by: ["status"], where: { deletedAt: null, ...perFilter }, _count: { _all: true } }),
       this.prisma.inventoryItem.groupBy({ by: ["kondisi"], where: { deletedAt: null }, _count: { _all: true } }),
     ]);
     const bookingMap: Record<string, number> = {};
@@ -77,13 +80,14 @@ export class ReportsService {
     };
   }
 
-  async weekly(weekStart: string, labId?: string, mataKuliah?: string) {
+  async weekly(weekStart: string, labId?: string, mataKuliah?: string, periodeId?: string) {
     const start = new Date(weekStart);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
 
-    const scheduleWhere: any = { deletedAt: null, status: "AKTIF" };
+    const perFilter = periodeId ? { periodeId } : {};
+    const scheduleWhere: any = { deletedAt: null, status: "AKTIF", ...perFilter };
     if (labId) scheduleWhere.labId = labId;
     if (mataKuliah) scheduleWhere.mataKuliah = { contains: mataKuliah, mode: "insensitive" };
     const schedules = await this.prisma.schedule.findMany({ where: scheduleWhere });
@@ -91,7 +95,7 @@ export class ReportsService {
     const weekSessions = schedules.filter((s) => s.tanggalMulai <= end && s.tanggalSelesai >= start);
 
     // attendance in this week
-    const attWhere: any = { scannedAt: { gte: start, lte: end } };
+    const attWhere: any = { scannedAt: { gte: start, lte: end }, ...perFilter };
     if (labId) attWhere.labId = labId;
     const atts = await this.prisma.attendance.findMany({ where: attWhere });
     const attCounts: Record<string, number> = { HADIR: 0, TERLAMBAT: 0, IZIN: 0, SAKIT: 0, TIDAK_HADIR: 0 };
@@ -117,12 +121,13 @@ export class ReportsService {
     };
   }
 
-  async usage(from: string, to: string, labId?: string) {
+  async usage(from: string, to: string, labId?: string, periodeId?: string) {
     const start = new Date(from);
     const end = new Date(to);
     end.setHours(23, 59, 59, 999);
     const where: any = { scannedAt: { gte: start, lte: end } };
     if (labId) where.labId = labId;
+    if (periodeId) where.periodeId = periodeId;
     const atts = await this.prisma.attendance.findMany({ where, include: { lab: { select: { kode: true } } } });
     const byLab: Record<string, { total: number; hadir: number }> = {};
     for (const a of atts) {

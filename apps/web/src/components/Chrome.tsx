@@ -149,6 +149,16 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
     if (loaded && user) loadPeriods();
   }, [loaded, user, loadPeriods]);
 
+  // Inisialisasi periode dari localStorage saat pertama kali dimuat
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("labops.selectedPeriodeId");
+      if (stored) {
+        setCurrentPeriod({ id: stored } as any);
+      }
+    }
+  }, []);
+
   async function switchPeriod(periodeId: string) {
     setPeriodLoading(true);
     try {
@@ -157,6 +167,12 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
       setPeriods(data);
       const cur = data.find((p) => p.isCurrent) || data[0];
       setCurrentPeriod(cur);
+      // Simpan pilihan periode ke localStorage agar halaman lain bisa menggunakannya
+      try {
+        localStorage.setItem("labops.selectedPeriodeId", periodeId);
+      } catch {
+        /* abaikan jika localStorage tidak tersedia */
+      }
     } catch (e: any) {
       console.error("Gagal mengganti periode:", e?.message);
     } finally {

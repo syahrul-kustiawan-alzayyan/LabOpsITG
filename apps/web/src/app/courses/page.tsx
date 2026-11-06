@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { labDisplayName } from "@/lib/lab-label";
 
@@ -93,7 +93,8 @@ export default function CoursesPage() {
     try {
       const meRes = await api<{ user: any }>("/auth/me");
       setMe(meRes.user);
-      const [courseList, labList] = await Promise.all([api<any[]>("/courses"), api<any[]>("/labs")]);
+      const courseUrl = "/courses" + (Object.keys(withPeriode({})).length ? "?" + new URLSearchParams(withPeriode({}) as Record<string, string>).toString() : "");
+      const [courseList, labList] = await Promise.all([api<any[]>(courseUrl), api<any[]>("/labs")]);
       setCourses(courseList);
       setLabs(labList);
       if (["ADMIN_SYSTEM", "COORDINATOR"].includes(meRes.user.role)) {

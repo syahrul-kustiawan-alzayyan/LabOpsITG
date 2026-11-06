@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import InstrukturSessionCreate from "@/components/InstrukturSessionCreate";
 import Link from "next/link";
@@ -44,9 +44,10 @@ export default function AttendancePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const attUrl = "/attendance" + (Object.keys(withPeriode({})).length ? "?" + new URLSearchParams(withPeriode({}) as Record<string, string>).toString() : "");
       const [m, history] = await Promise.all([
         api<{ user: any }>("/auth/me"),
-        api<any[]>("/attendance"),
+        api<any[]>(attUrl),
       ]);
       setMe(m.user);
       setList(history);

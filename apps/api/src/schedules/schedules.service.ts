@@ -8,12 +8,13 @@ import { findScheduleConflict, timeToMin } from "../common/schedule-conflict";
 export class SchedulesService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
 
-  findAll(q: { labId?: string; pengampuId?: string; hari?: number; semester?: string; page?: string; limit?: string }) {
+  findAll(q: { labId?: string; pengampuId?: string; hari?: number; semester?: string; page?: string; limit?: string; periodeId?: string }) {
     const where: any = { deletedAt: null, status: "AKTIF" };
     if (q.labId) where.labId = q.labId;
     if (q.pengampuId) where.pengampuId = q.pengampuId;
     if (q.hari !== undefined && q.hari !== null && (q.hari as any) !== "") where.hari = Number(q.hari);
     if (q.semester) where.semester = q.semester;
+    if (q.periodeId) where.periodeId = q.periodeId;
     const page = Math.max(1, Number(q.page) || 1);
     const limit = Math.min(500, Math.max(1, Number(q.limit) || 200));
     return this.prisma.schedule.findMany({

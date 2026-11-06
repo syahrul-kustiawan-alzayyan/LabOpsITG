@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { downloadCsv } from "@/lib/export";
 
@@ -48,8 +48,10 @@ export default function BookingsPage() {
   async function load() {
     setLoading(true);
     try {
+      const bookingParams = withPeriode({});
+      if (filterStatus) bookingParams.status = filterStatus;
       const [b, l, m] = await Promise.all([
-        api<any[]>(`/bookings${filterStatus ? `?status=${filterStatus}` : ""}`),
+        api<any[]>(`/bookings?${new URLSearchParams(bookingParams as Record<string, string>).toString()}`),
         api<any[]>("/labs"),
         api<{ user: any }>("/auth/me"),
       ]);

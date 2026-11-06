@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { ScheduleGrid, hourRangeFor } from "@/components/ScheduleGrid";
 
@@ -56,7 +56,7 @@ export default function SchedulesPage() {
         setIsInstruktur(true);
         setMyOnly(true);
       }
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(withPeriode({}));
       if (filterLab) params.set("labId", filterLab);
       const [sched, labList] = await Promise.all([
         myOnly ? api<any[]>("/schedules/mine") : api<any[]>(`/schedules?${params.toString()}`),

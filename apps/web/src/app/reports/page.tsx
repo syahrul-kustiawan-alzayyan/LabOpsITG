@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { downloadCsv } from "@/lib/export";
 
@@ -74,7 +74,11 @@ export default function ReportsPage() {
 
   const loadDash = useCallback(async () => {
     try {
-      const [d, l] = await Promise.all([api<any>("/reports/dashboard"), api<any[]>("/labs")]);
+      const dashParams = withPeriode({});
+      const [d, l] = await Promise.all([
+        api<any>(`/reports/dashboard?${new URLSearchParams(dashParams as Record<string, string>).toString()}`),
+        api<any[]>("/labs"),
+      ]);
       setDash(d);
       setLabs(l);
     } catch (e: any) {
@@ -90,7 +94,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     let alive = true;
-    const params = new URLSearchParams({ weekStart });
+    const params = new URLSearchParams(withPeriode({ weekStart }));
     if (filterLab) params.set("labId", filterLab);
     api<any>(`/reports/weekly?${params.toString()}`)
       .then((d) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import QRCode from "qrcode";
@@ -153,7 +153,9 @@ export default function InstrukturAttendance() {
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const data = await api<SessionItem[]>("/attendance/instruktur/sessions");
+      const per = withPeriode({});
+      const url = "/attendance/instruktur/sessions" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const data = await api<SessionItem[]>(url);
       setHistory(data);
     } catch {
       /* abaikan */

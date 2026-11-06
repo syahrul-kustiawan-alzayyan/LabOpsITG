@@ -117,8 +117,8 @@ export class AttendanceController {
 
   @Get("instruktur/sessions")
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
-  instrukturSessions(@Req() req: Request) {
-    return this.svc.instrukturSessions((req as any).user.sub);
+  instrukturSessions(@Query() q: any, @Req() req: Request) {
+    return this.svc.instrukturSessions((req as any).user.sub, 20, q.periodeId);
   }
 
   @Get("recap/:sesiId")

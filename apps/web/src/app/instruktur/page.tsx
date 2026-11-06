@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon, IconName } from "@/components/Icon";
 import { ScheduleGrid } from "@/components/ScheduleGrid";
 
@@ -92,11 +92,14 @@ export default function InstrukturDashboardPage() {
     let alive = true;
     async function load() {
       try {
+        const per = withPeriode({});
+        const sessionsUrl = "/attendance/instruktur/sessions" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
+        const schedulesUrl = "/schedules/mine" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
         const [meRes, courseRes, sessionRes, scheduleRes] = await Promise.all([
           api<{ user: any }>("/auth/me"),
           api<Course[]>("/attendance/instruktur/courses"),
-          api<SessionGroup[]>("/attendance/instruktur/sessions"),
-          api<ScheduleItem[]>("/schedules/mine").catch(() => []),
+          api<SessionGroup[]>(sessionsUrl),
+          api<ScheduleItem[]>(schedulesUrl).catch(() => []),
         ]);
         if (!alive) return;
         setMe(meRes.user);

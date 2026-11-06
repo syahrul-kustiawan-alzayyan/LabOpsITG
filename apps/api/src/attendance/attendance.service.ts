@@ -686,17 +686,19 @@ export class AttendanceService {
   }
 
   /** Riwayat sesi absensi yang dibuat oleh instruktur atau asisten dosen (dikelompokkan per sesi + tanggal + pertemuan). */
-  async instrukturSessions(actorId: string, limit = 20) {
+  async instrukturSessions(actorId: string, limit = 20, periodeId?: string) {
+    const where: any = {
+      deletedAt: null,
+      qrTokenScanned: "INSTRUKTUR_SESSION",
+      OR: [
+        { sesi: { course: { instrukturId: actorId } } },
+        { sesi: { course: { asistenIds: { has: actorId } } } },
+        { sesi: { asistenIds: { has: actorId } } },
+      ],
+    };
+    if (periodeId) where.periodeId = periodeId;
     const rows = await this.prisma.attendance.findMany({
-      where: {
-        deletedAt: null,
-        qrTokenScanned: "INSTRUKTUR_SESSION",
-        OR: [
-          { sesi: { course: { instrukturId: actorId } } },
-          { sesi: { course: { asistenIds: { has: actorId } } } },
-          { sesi: { asistenIds: { has: actorId } } },
-        ],
-      },
+      where,
       include: {
         sesi: {
           select: {
@@ -1105,10 +1107,11 @@ export class AttendanceService {
   }
 
   list(
-    q: { sesiId?: string; userId?: string; labId?: string; from?: string; to?: string; page?: string; limit?: string },
+    q: { sesiId?: string; userId?: string; labId?: string; from?: string; to?: string; page?: string; limit?: string; periodeId?: string },
     actor?: SessionActor,
   ) {
     const where: any = { deletedAt: null };
+    if (q.periodeId) where.periodeId = q.periodeId;
     const isTeamViewer =
       actor?.role === "INSTRUKTUR" ||
       actor?.role === "ASISTEN_DOSEN" ||

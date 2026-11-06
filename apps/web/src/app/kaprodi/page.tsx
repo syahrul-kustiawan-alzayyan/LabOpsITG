@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, withPeriode } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { labDisplayName, labRoom } from "@/lib/lab-label";
 
@@ -54,12 +54,15 @@ export default function KaprodiPage() {
         return;
       }
 
+      const per = withPeriode({});
+      const coursesUrl = `/courses?prodiId=${prodiId}` + (Object.keys(per).length ? "&" + new URLSearchParams(per as Record<string, string>).toString() : "");
+      const attUrl = `/attendance` + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
       const [p, cs, st, iss, att, lb] = await Promise.all([
         api<any>(`/prodi/${prodiId}`),
-        api<any[]>(`/courses?prodiId=${prodiId}`).catch(() => []),
+        api<any[]>(coursesUrl).catch(() => []),
         api<any[]>(`/users?role=KAPRODI&prodiId=${prodiId}`).catch(() => []),
         api<any[]>(`/issues`).catch(() => []),
-        api<any[]>(`/attendance`).catch(() => []),
+        api<any[]>(attUrl).catch(() => []),
         api<any[]>("/labs").catch(() => []),
       ]);
       setProdi(p);

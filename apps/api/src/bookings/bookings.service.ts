@@ -54,12 +54,13 @@ export class BookingsService {
     return { ok: true };
   }
 
-  async findAll(q: { peminjamId?: string; labId?: string; status?: string; from?: string; to?: string; page?: string | number; limit?: string | number }, actor?: { sub: string; role: string }) {
+  async findAll(q: { peminjamId?: string; labId?: string; status?: string; from?: string; to?: string; page?: string | number; limit?: string | number; periodeId?: string }, actor?: { sub: string; role: string }) {
     const where: any = { deletedAt: null };
     if (actor?.role === "USER" && actor.sub) where.peminjamId = actor.sub;
     else if (q.peminjamId) where.peminjamId = q.peminjamId;
     if (q.labId) where.labId = q.labId;
     if (q.status) where.status = q.status;
+    if (q.periodeId) where.periodeId = q.periodeId;
     if (q.from || q.to) {
       where.tanggal = {};
       if (q.from) where.tanggal.gte = startOfJakartaDay(q.from);
