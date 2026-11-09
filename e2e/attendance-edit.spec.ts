@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, logout } from "./helpers";
+import { login, logout, pickCourseWithSchedule } from "./helpers";
 
 const API_URL = process.env.E2E_API_URL || "http://localhost:4000";
 
@@ -10,19 +10,7 @@ test.describe("Koreksi riwayat absensi", () => {
     await expect(page.locator("h1.page-title")).toContainText(/absensi instruktur/i);
     await expect(page.locator("#instruktur-course")).toBeVisible();
 
-    const warning = page.locator(".alert-warning", { hasText: /tidak ada jadwal/i });
-    const options = page.locator("#instruktur-course option");
-    const total = await options.count();
-    let picked = false;
-
-    for (let i = 1; i < total; i++) {
-      await page.locator("#instruktur-course").selectOption({ index: i });
-      await page.waitForTimeout(300);
-      if (!(await warning.isVisible().catch(() => false))) {
-        picked = true;
-        break;
-      }
-    }
+    const picked = await pickCourseWithSchedule(page);
     test.skip(!picked, "Tidak ada mata kuliah instruktur yang berjadwal hari ini.");
 
     await expect(page.locator("#instruktur-kelas")).not.toHaveValue("");

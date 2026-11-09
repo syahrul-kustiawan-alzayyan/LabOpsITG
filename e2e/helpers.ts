@@ -48,3 +48,37 @@ export async function assertNoHorizontalOverflow(page: Page) {
   });
   expect(overflow, "halaman tidak boleh melebar melewati viewport").toBeLessThanOrEqual(2);
 }
+
+/**
+ * Memilih mata kuliah yang berjadwal hari ini beserta kelasnya.
+ *
+ * Dropdown kelas hanya terisi otomatis bila mata kuliah tersebut punya tepat
+ * satu kelas hari ini. Bila ada beberapa kelas, pengguna harus memilih
+ * sendiri; helper ini menirukan perilaku itu agar spec tidak bergantung pada
+ * data seed tertentu.
+ *
+ * Mengembalikan true bila ada mata kuliah yang bisa dipakai.
+ */
+export async function pickCourseWithSchedule(page: Page): Promise<boolean> {
+  const warning = page.locator(".alert-warning", { hasText: /tidak ada jadwal/i });
+  const course = page.locator("#instruktur-course");
+  const options = page.locator("#instruktur-course option");
+  const total = await options.count();
+
+  for (let i = 1; i < total; i++) {
+    await course.selectOption({ index: i });
+    await page.waitForTimeout(300);
+    if (await warning.isVisible().catch(() => false)) continue;
+
+    const kelas = page.locator("#instruktur-kelas");
+    if (!(await kelas.inputValue())) {
+      const values = await kelas
+        .locator("option")
+        .evaluateAll((els) => els.map((e) => e.getAttribute("value") ?? "").filter((v) => v !== ""));
+      if (values.length === 0) continue;
+      await kelas.selectOption(values[0]);
+    }
+    return true;
+  }
+  return false;
+}
