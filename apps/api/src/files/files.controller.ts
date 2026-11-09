@@ -1,26 +1,9 @@
 import { BadRequestException, Controller, Post, UseInterceptors, UploadedFile, UseGuards } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
-import { extname } from "path";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
-
-const ALLOWED = new Map<string, string[]>([
-  ["image/png", [".png"]],
-  ["image/jpeg", [".jpg", ".jpeg"]],
-  ["image/webp", [".webp"]],
-  ["application/pdf", [".pdf"]],
-]);
-
-const storage = diskStorage({
-  destination: "./uploads",
-  filename: (req, file, cb) => {
-    const ext = extname(file.originalname).toLowerCase();
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, unique + ext);
-  },
-});
+import { MAX_UPLOAD_BYTES, toUploadResponse, uploadFileFilter, uploadStorage } from "./upload.config";
 
 @Controller("files")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,26 +12,13 @@ export class FilesController {
   @Roles("ADMIN_SYSTEM", "COORDINATOR", "USER", "LEADER", "INSTRUKTUR", "ASISTEN_DOSEN")
   @UseInterceptors(
     FileInterceptor("file", {
-      storage,
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        const allowedExt = ALLOWED.get(file.mimetype);
-        if (!allowedExt || !allowedExt.includes(ext)) {
-          return cb(new BadRequestException("Tipe file tidak diizinkan. Gunakan PNG, JPG, WEBP, atau PDF."), false);
-        }
-        cb(null, true);
-      },
+      storage: uploadStorage,
+      limits: { fileSize: MAX_UPLOAD_BYTES },
+      fileFilter: uploadFileFilter,
     }),
   )
   upload(@UploadedFile() file: any) {
     if (!file) throw new BadRequestException("File tidak ditemukan");
-    return {
-      url: `/uploads/${file.filename}`,
-      filename: file.filename,
-      originalname: file.originalname,
-      size: file.size,
-      mimeType: file.mimetype,
-    };
+    return toUploadResponse(file);
   }
 }
