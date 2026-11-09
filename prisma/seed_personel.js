@@ -1,7 +1,7 @@
 /**
  * Seed data dummy instruktur & asisten dosen per mata kuliah.
  *
- * - 7 instruktur dan 14 asisten dosen (role USER, sub-role INSTRUKTUR / ASISTEN_DOSEN)
+ * - 7 instruktur dan 14 asisten dosen (role langsung INSTRUKTUR / ASISTEN_DOSEN)
  * - Setiap mata kuliah mendapat 1 instruktur + 2 asisten dosen (rotasi)
  * - Schedule milik mata kuliah ikut disinkronkan asistenIds-nya
  *
@@ -54,8 +54,8 @@ async function upsertPersonel(list, role, defaultPassword) {
     const passwordHash = await bcrypt.hash(p.password || defaultPassword, 10);
     const user = await prisma.user.upsert({
       where: { email: p.email },
-      update: { nama: p.nama, passwordHash, role, status: "ACTIVE", deletedAt: null },
-      create: { nama: p.nama, email: p.email, passwordHash, role },
+      update: { nama: p.nama, passwordHash, role, subRoles: [role], status: "ACTIVE", deletedAt: null },
+      create: { nama: p.nama, email: p.email, passwordHash, role, subRoles: [role] },
       select: { id: true, nama: true, email: true },
     });
     users.push(user);

@@ -14,6 +14,8 @@ async function main() {
   const admins = [
     { nama: "Admin Sistem", email: "admin@labops.local", password: "admin123", role: "ADMIN_SYSTEM" },
     { nama: "Koordinator Lab", email: "koordinator@labops.local", password: "koord123", role: "COORDINATOR" },
+    // Pimpinan (LEADER): memantau laporan dan rekap absensi.
+    { nama: "Pimpinan Prodi", email: "prodi@labops.local", password: "prodi123", role: "LEADER" },
   ];
   for (const a of admins) {
     const exists = await prisma.user.findUnique({ where: { email: a.email } });

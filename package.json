@@ -19,7 +19,7 @@
     "packages/*"
   ],
   "prisma": {
-    "seed": "node prisma/seed_full.js"
+    "seed": "node prisma/seed_all.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
