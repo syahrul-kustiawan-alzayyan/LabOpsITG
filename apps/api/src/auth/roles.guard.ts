@@ -11,7 +11,9 @@ export class RolesGuard implements CanActivate {
     if (!requiredRoles || requiredRoles.length === 0) return true;
     const req = context.switchToHttp().getRequest();
     const user = req.user;
-    if (!user || !requiredRoles.includes(user.role)) throw new ForbiddenException("Forbidden");
+    if (!user || !requiredRoles.includes(user.role)) {
+      throw new ForbiddenException("Anda tidak memiliki akses ke sumber daya ini.");
+    }
     return true;
   }
 }
