@@ -21,6 +21,24 @@ type TeamStatus = (typeof ATTENDANCE_STATUSES)[number];
 
 type SessionActor = { sub: string; role: string; subRoles?: string[] };
 
+/**
+ * Peran pengajar yang dapat absen pada sesi tim.
+ *
+ * Instruktur dan asisten dosen kini memakai `role` langsung (bukan subRole),
+ * sedangkan akun lama masih menyimpan penandanya di `subRoles`. `role` diperiksa
+ * lebih dulu karena itu sumber kebenaran terbaru; `subRoles` hanya jadi cadangan
+ * untuk akun lama yang belum diperbarui.
+ */
+type PeranPengajar = "INSTRUKTUR" | "ASISTEN_DOSEN" | null;
+
+function peranPengajar(user: { role?: string | null; subRoles?: string[] | null }): PeranPengajar {
+  if (user.role === "INSTRUKTUR") return "INSTRUKTUR";
+  if (user.role === "ASISTEN_DOSEN") return "ASISTEN_DOSEN";
+  if (user.subRoles?.includes("INSTRUKTUR")) return "INSTRUKTUR";
+  if (user.subRoles?.includes("ASISTEN_DOSEN")) return "ASISTEN_DOSEN";
+  return null;
+}
+
 @Injectable()
 export class AttendanceService {
   constructor(private prisma: PrismaService, private audit: AuditService, private notif: NotificationsService) {}
@@ -210,7 +228,9 @@ export class AttendanceService {
       where: { id: { in: [...teamIds] }, deletedAt: null },
       select: { id: true, nama: true, email: true },
     });
-    const byId = new Map(users.map((u) => [u.id, u]));
+    const byId = new Map<string, { id: string; nama: string; email: string }>(
+      users.map((u) => [u.id, u] as const),
+    );
     const nowMinutes = jakartaParts(new Date()).minutes;
 
     return {
@@ -220,7 +240,9 @@ export class AttendanceService {
       isToday,
       canMark: day.getTime() <= today.getTime(),
       sessions: sessions.map((s) => {
-        const attendance = new Map(s.attendances.map((a) => [a.userId, a]));
+        const attendance = new Map<string, (typeof s.attendances)[number]>(
+          s.attendances.map((a) => [a.userId, a] as const),
+        );
         const asistenIds = [...new Set([...(s.course?.asistenIds ?? []), ...s.asistenIds])];
         const members = [
           s.course?.instrukturId ? this.teamMember(byId, attendance, s.course.instrukturId, "INSTRUKTUR") : null,
@@ -513,7 +535,7 @@ export class AttendanceService {
         deletedAt: null,
         ...(token.pertemuanKe != null ? { pertemuanKe: token.pertemuanKe } : {}),
       },
-      include: { user: { select: { id: true, nama: true, email: true, subRoles: true } } },
+      include: { user: { select: { id: true, nama: true, email: true, role: true, subRoles: true } } },
       orderBy: { user: { nama: "asc" } },
     });
 
@@ -521,7 +543,7 @@ export class AttendanceService {
       id: a.user.id,
       nama: a.user.nama,
       email: a.user.email,
-      peran: a.user.subRoles.includes("INSTRUKTUR") ? "INSTRUKTUR" : a.user.subRoles.includes("ASISTEN_DOSEN") ? "ASISTEN_DOSEN" : "LAINNYA",
+      peran: peranPengajar(a.user) ?? "LAINNYA",
       status: a.status,
       pertemuanKe: a.pertemuanKe,
       materi: a.materi,
@@ -934,7 +956,7 @@ export class AttendanceService {
       where: { deletedAt: null },
       include: {
         sesi: { select: { mataKuliah: true, kelas: true, mataKuliahId: true } },
-        user: { select: { nama: true, email: true, subRoles: true } },
+        user: { select: { nama: true, email: true, role: true, subRoles: true } },
       },
     });
 
@@ -981,7 +1003,7 @@ export class AttendanceService {
       where: { deletedAt: null },
       include: {
         sesi: { select: { mataKuliahId: true, mataKuliah: true, kelas: true } },
-        user: { select: { nama: true, subRoles: true } },
+        user: { select: { nama: true, role: true, subRoles: true } },
       },
       orderBy: { scannedAt: "desc" },
     });
@@ -1005,8 +1027,9 @@ export class AttendanceService {
       }
       byCourse[mkId].total += 1;
       if (a.status === "HADIR") byCourse[mkId].hadir += 1;
-      if (a.user.subRoles.includes("INSTRUKTUR")) byCourse[mkId].instruktur.add(a.userId);
-      if (a.user.subRoles.includes("ASISTEN_DOSEN")) byCourse[mkId].asdos.add(a.userId);
+      const peran = peranPengajar(a.user);
+      if (peran === "INSTRUKTUR") byCourse[mkId].instruktur.add(a.userId);
+      if (peran === "ASISTEN_DOSEN") byCourse[mkId].asdos.add(a.userId);
       if (a.pertemuanKe != null) byCourse[mkId].pertemuan.add(a.pertemuanKe);
     }
 
@@ -1030,7 +1053,7 @@ export class AttendanceService {
       where: { deletedAt: null, sesi: { mataKuliahId: courseId } },
       include: {
         sesi: { select: { id: true, mataKuliah: true, kelas: true, hari: true, jamMulai: true, jamSelesai: true, tanggalMulai: true, tanggalSelesai: true } },
-        user: { select: { id: true, nama: true, email: true, subRoles: true } },
+        user: { select: { id: true, nama: true, email: true, role: true, subRoles: true } },
       },
       orderBy: [{ scannedAt: "asc" }],
     });
@@ -1060,8 +1083,9 @@ export class AttendanceService {
       byPertemuan[pk].total += 1;
       if (a.status === "HADIR") byPertemuan[pk].hadir += 1;
       const member = { id: a.userId, nama: a.user.nama, status: a.status };
-      if (a.user.subRoles.includes("INSTRUKTUR")) byPertemuan[pk].instruktur.push(member);
-      if (a.user.subRoles.includes("ASISTEN_DOSEN")) byPertemuan[pk].asdos.push(member);
+      const peran = peranPengajar(a.user);
+      if (peran === "INSTRUKTUR") byPertemuan[pk].instruktur.push(member);
+      if (peran === "ASISTEN_DOSEN") byPertemuan[pk].asdos.push(member);
     }
 
     return {
