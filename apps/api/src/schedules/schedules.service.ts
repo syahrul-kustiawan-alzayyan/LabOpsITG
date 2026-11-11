@@ -83,6 +83,7 @@ export class SchedulesService {
     if (Number(data.hari) < 0 || Number(data.hari) > 6) throw new BadRequestException("Hari tidak valid");
     const c = await this.checkConflict({ labId: data.labId, hari: Number(data.hari), jamMulai: data.jamMulai, jamSelesai: data.jamSelesai, tanggalMulai, tanggalSelesai });
     if (c.conflict) throw new BadRequestException(`Bentrok dengan ${c.type === "jadwal" ? "jadwal" : "peminjaman"} lain pada lab & jam yang sama`);
+    const periodeId = data.periodeId || (await this.currentPeriodeId());
     const sch = await this.prisma.schedule.create({
       data: {
         labId: data.labId,
@@ -99,10 +100,17 @@ export class SchedulesService {
         semester: data.semester,
         jenis: data.jenis || "PRAKTIKUM_RUTIN",
         status: "AKTIF",
+        periodeId,
       },
     });
     if (actorId) await this.audit.log({ actorId, action: "CREATE_SCHEDULE", objectType: "Schedule", objectId: sch.id, newValue: sch });
     return sch;
+  }
+
+  /** ID periode akademik aktif, dipakai sebagai default jadwal baru. */
+  private async currentPeriodeId(): Promise<string | null> {
+    const current = await this.prisma.periode.findFirst({ where: { isCurrent: true }, select: { id: true } });
+    return current?.id ?? null;
   }
 
   async update(id: string, data: any, actorId?: string) {
@@ -135,6 +143,7 @@ export class SchedulesService {
         semester: data.semester ?? existing.semester,
         jenis: data.jenis ?? existing.jenis,
         status: data.status ?? existing.status,
+        periodeId: data.periodeId === undefined ? existing.periodeId : data.periodeId,
       },
     });
     if (actorId) await this.audit.log({ actorId, action: "UPDATE_SCHEDULE", objectType: "Schedule", objectId: id, oldValue: existing, newValue: sch });

@@ -36,18 +36,16 @@ sumber kebenaran.
 
 ## PostgreSQL di mesin ini
 
-Instalasi PostgreSQL bawaan Windows diblokir oleh kebijakan Application Control
-(WDAC "Enterprise signing level"), sehingga `initdb` gagal saat memuat
-`plpgsql.dll` dan `pg_ctl.exe` tak bisa dijalankan. Agar database tetap bisa
-dipakai, cluster dibuat manual di luar `Program Files`:
+Aplikasi memakai cluster PostgreSQL 18 khusus pengembangan di port `5433`,
+terpisah dari instance utama yang berjalan di port `5432` (instance itu tidak
+disentuh).
 
-- Binary: `D:\App\pgsql18\bin`
-- Data directory: `D:\App\pgsql18\data`
-- Port `5433`, superuser `labops` (password `labops`), database `labops`
-- `share/extension/plpgsql.control` diganti versi stub tanpa `module_pathname`,
-  sehingga `CREATE EXTENSION plpgsql` tak perlu memuat DLL yang diblokir.
-  Konsekuensinya bahasa PL/pgSQL **tidak tersedia** di database ini; hal itu
-  tidak dipakai oleh migrasi Prisma maupun query aplikasi.
+- Binary: `C:\Program Files\PostgreSQL\18\bin`
+- Data directory: `%LOCALAPPDATA%\LabOps\pgsql18\data`
+- Port `5433`, superuser `labops`, database `labops`
+- Cluster dibuat dengan `initdb -U labops --auth=trust`, sehingga koneksi dari
+  localhost tidak meminta kata sandi. Nilai password pada `DATABASE_URL`
+  diabaikan dan hanya dipertahankan agar seragam dengan `.env.example`.
 
 Nyalakan server setelah restart Windows:
 

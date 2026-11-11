@@ -79,6 +79,30 @@ async function main() {
   console.log("Kaprodi TIF:", kaprodiTIF.nama, kaprodiTIF.prodiId);
   console.log("Kaprodi SIS:", kaprodiSI.nama, kaprodiSI.prodiId);
 
+  // 5. Hubungkan data yang ter-scope periode ke periode aktif.
+  //    seed_full.js membuat jadwal, mata kuliah, lab, inventaris, dan pengguna
+  //    sebelum periode akademik ada, sehingga periodeId-nya kosong dan data
+  //    tidak muncul saat halaman difilter per periode.
+  const periodScoped = [
+    ["recruitmentPeriod", "lowongan rekrutmen"],
+    ["schedule", "jadwal"],
+    ["mataKuliah", "mata kuliah"],
+    ["lab", "lab"],
+    ["inventoryItem", "inventaris"],
+    ["booking", "peminjaman"],
+    ["attendance", "absensi"],
+    ["user", "pengguna"],
+  ];
+  for (const [model, label] of periodScoped) {
+    const res = await prisma[model].updateMany({
+      where: { periodeId: null },
+      data: { periodeId: periodeGanjil.id },
+    });
+    if (res.count > 0) {
+      console.log(`Backfill periode ${label}: ${res.count} -> ${periodeGanjil.nama}`);
+    }
+  }
+
   // 4. Set kaprodi di prodi
   await prisma.prodi.update({
     where: { id: prodiTIF.id },

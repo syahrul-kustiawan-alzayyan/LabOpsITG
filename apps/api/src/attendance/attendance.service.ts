@@ -112,6 +112,7 @@ export class AttendanceService {
         sesiId: active.id,
         userId,
         labId: active.labId,
+        periodeId: active.periodeId ?? null,
         tanggal: today,
         scannedAt: now,
         status: status as any,
@@ -337,6 +338,7 @@ export class AttendanceService {
             sesiId,
             userId: record.userId,
             labId: sesi.labId,
+            periodeId: sesi.periodeId ?? null,
             tanggal: day,
             scannedAt: new Date(),
             status: record.status as any,
@@ -455,6 +457,7 @@ export class AttendanceService {
             sesiId: sesi.id,
             userId: record.userId,
             labId: sesi.labId,
+            periodeId: sesi.periodeId ?? null,
             tanggal: day,
             pertemuanKe: body.pertemuanKe ?? null,
             materi: body.materi ?? null,
@@ -1115,7 +1118,7 @@ export class AttendanceService {
       return updated;
     }
     const created = await this.prisma.attendance.create({
-      data: { sesiId, userId, labId: sesi.labId, tanggal: day, scannedAt: new Date(), status: status as any, qrTokenScanned: "MANUAL", correctedBy: actorId, correctionReason: reason },
+      data: { sesiId, userId, labId: sesi.labId, periodeId: sesi.periodeId ?? null, tanggal: day, scannedAt: new Date(), status: status as any, qrTokenScanned: "MANUAL", correctedBy: actorId, correctionReason: reason },
     });
     await this.audit.log({ actorId, action: "MANUAL_ATTENDANCE", objectType: "Attendance", objectId: created.id, newValue: created });
     return created;

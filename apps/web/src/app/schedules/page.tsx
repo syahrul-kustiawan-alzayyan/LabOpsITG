@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, withPeriode } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { ScheduleGrid, hourRangeFor } from "@/components/ScheduleGrid";
 
@@ -91,7 +91,10 @@ export default function SchedulesPage() {
     e.preventDefault();
     setMsg(null);
     try {
-      await api("/schedules", { method: "POST", body: { ...form, hari: Number(form.hari) } });
+      await api("/schedules", {
+        method: "POST",
+        body: { ...form, hari: Number(form.hari), periodeId: getSelectedPeriodeId() || undefined },
+      });
       setMsg({ type: "success", text: "Jadwal berhasil dibuat." });
       setForm({ ...EMPTY_FORM, labId: form.labId, semester: form.semester });
       setShowForm(false);

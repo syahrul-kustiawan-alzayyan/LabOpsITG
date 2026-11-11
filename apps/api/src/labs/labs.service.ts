@@ -17,7 +17,14 @@ export class LabsService {
   async create(data: { kode: string; nama: string; kapasitas: number; lokasi: string }, actorId?: string) {
     const exists = await this.prisma.lab.findUnique({ where: { kode: data.kode } });
     if (exists) throw new BadRequestException("Kode lab sudah ada");
-    const lab = await this.prisma.lab.create({ data: { ...data, qrToken: `qr-${data.kode.toLowerCase()}-${Date.now()}` } });
+    const current = await this.prisma.periode.findFirst({ where: { isCurrent: true }, select: { id: true } });
+    const lab = await this.prisma.lab.create({
+      data: {
+        ...data,
+        periodeId: (data as any).periodeId ?? current?.id ?? null,
+        qrToken: `qr-${data.kode.toLowerCase()}-${Date.now()}`,
+      },
+    });
     if (actorId) await this.audit.log({ actorId, action: "CREATE_LAB", objectType: "Lab", objectId: lab.id, newValue: lab });
     return lab;
   }

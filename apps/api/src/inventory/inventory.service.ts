@@ -22,8 +22,18 @@ export class InventoryService {
   async create(data: any, actorId?: string) {
     const exists = await this.prisma.inventoryItem.findUnique({ where: { kodeAset: data.kodeAset } });
     if (exists) throw new BadRequestException("Kode aset sudah ada");
+    const current = await this.prisma.periode.findFirst({ where: { isCurrent: true }, select: { id: true } });
     const item = await this.prisma.inventoryItem.create({
-      data: { kodeAset: data.kodeAset, nama: data.nama, kategori: data.kategori, labId: data.labId, kondisi: data.kondisi || "BAIK", tanggalPerolehan: data.tanggalPerolehan ? new Date(data.tanggalPerolehan) : null, catatan: data.catatan },
+      data: {
+        kodeAset: data.kodeAset,
+        nama: data.nama,
+        kategori: data.kategori,
+        labId: data.labId,
+        kondisi: data.kondisi || "BAIK",
+        tanggalPerolehan: data.tanggalPerolehan ? new Date(data.tanggalPerolehan) : null,
+        catatan: data.catatan,
+        periodeId: data.periodeId ?? current?.id ?? null,
+      },
     });
     if (actorId) await this.audit.log({ actorId, action: "CREATE_INVENTORY", objectType: "InventoryItem", objectId: item.id, newValue: item });
     return item;

@@ -1,23 +1,26 @@
 <#
 .SYNOPSIS
-  Menjalankan server PostgreSQL LabOps.
+  Menjalankan server PostgreSQL untuk pengembangan LabOps.
 
 .DESCRIPTION
-  pg_ctl.exe diblokir oleh Application Control di mesin ini, jadi server
-  dijalankan lewat postgres.exe secara langsung. Jalankan skrip ini setelah
-  restart Windows untuk menyalakan database kembali.
+  Memakai instalasi PostgreSQL 18 di Program Files dengan cluster terpisah
+  di %LOCALAPPDATA%\LabOps\pgsql18 (port 5433). Instance PostgreSQL utama
+  di port 5432 tidak disentuh.
 
-  Konfigurasi: D:\App\pgsql18\data (port 5433, database "labops").
+  Jalankan skrip ini setelah restart Windows untuk menyalakan database.
 #>
 $ErrorActionPreference = 'Stop'
 
-$pgBin = 'D:\App\pgsql18\bin'
-$pgData = 'D:\App\pgsql18\data'
+$pgBin = 'C:\Program Files\PostgreSQL\18\bin'
+$pgData = Join-Path $env:LOCALAPPDATA 'LabOps\pgsql18\data'
 $logOut = Join-Path $pgData 'server.log'
-$logErr = Join-Path $pgData 'server.err.log'
 
-if (-not (Test-Path (Join-Path $pgBin 'postgres.exe'))) {
+if (-not (Test-Path (Join-Path $pgBin 'pg_ctl.exe'))) {
   Write-Error "PostgreSQL tidak ditemukan di $pgBin"
+  exit 1
+}
+if (-not (Test-Path (Join-Path $pgData 'PG_VERSION'))) {
+  Write-Error "Data directory cluster belum ada di $pgData"
   exit 1
 }
 
@@ -27,18 +30,10 @@ if ($running) {
   exit 0
 }
 
-$proc = Start-Process -FilePath (Join-Path $pgBin 'postgres.exe') `
-  -ArgumentList '-D', $pgData `
-  -RedirectStandardOutput $logOut `
-  -RedirectStandardError $logErr `
-  -WindowStyle Hidden `
-  -PassThru
-
-Start-Sleep -Seconds 5
-if (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue) {
-  Write-Host "PostgreSQL berjalan. PID=$($proc.Id) port=5433"
-  Write-Host "Log: $logErr"
-} else {
-  Write-Error "Gagal menjalankan PostgreSQL. Lihat $logErr"
+& (Join-Path $pgBin 'pg_ctl.exe') -D $pgData -l $logOut start
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "Gagal menjalankan PostgreSQL. Lihat $logOut"
   exit 1
 }
+Write-Host "PostgreSQL berjalan di port 5433."
+Write-Host "Log: $logOut"

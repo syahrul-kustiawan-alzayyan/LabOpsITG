@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, fileUrl, uploadFile, withPeriode, getSelectedPeriodeId } from "@/lib/api";
+import { api, fileUrl, uploadFile, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 
 const STATUS = ["DIAJUKAN", "DIPROSES", "WAWANCARA", "DITERIMA", "DITOLAK", "CADANGAN"];
@@ -44,6 +44,7 @@ function applicantEmail(a: any) {
 
 export default function RecruitmentPage() {
   const [periods, setPeriods] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [mine, setMine] = useState<any[]>([]);
   const [me, setMe] = useState<any>(null);
@@ -62,45 +63,58 @@ export default function RecruitmentPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const per = withPeriode({});
-      const periodsUrl = "/recruitment/periods" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
-      const appsUrl = "/recruitment/applications" + (Object.keys(per).length ? "?" + new URLSearchParams(per as Record<string, string>).toString() : "");
-      const [p, m] = await Promise.all([api<any[]>(periodsUrl), api<{ user: any }>("/auth/me")]);
+      // Rekrutmen bersifat global (sama seperti halaman informasi publik), jadi
+      // tidak difilter periode akademik. Filter periode membuat lowongan lama
+      // yang periodeId-nya kosong tidak muncul saat periode tertentu dipilih.
+      const [p, m] = await Promise.all([api<any[]>("/recruitment/periods"), api<{ user: any }>("/auth/me")]);
       setPeriods(p);
       setMe(m.user);
       const mineRes = await api<any[]>("/recruitment/applications/mine").catch(() => []);
       setMine(mineRes);
       if (["COORDINATOR", "ADMIN_SYSTEM", "KAPRODI"].includes(m.user.role)) {
-        setApplications(await api<any[]>(appsUrl).catch(() => []));
+        setApplications(await api<any[]>("/recruitment/applications").catch(() => []));
+      }
+      // Pilihan mata kuliah untuk membuka lowongan diambil dari data mata kuliah.
+      if (["COORDINATOR", "ADMIN_SYSTEM"].includes(m.user.role)) {
+        setCourses(await api<any[]>("/courses").catch(() => []));
       }
     } catch (e: any) {
       setMsg({ type: "danger", text: e.message });
     } finally {
       setLoading(false);
     }
-  }, [getSelectedPeriodeId()]);
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // Muat ulang rekrutmen saat periode diganti dari sidebar
-  useEffect(() => {
-    const handler = () => load();
-    window.addEventListener("labops:periode-changed", handler);
-    return () => window.removeEventListener("labops:periode-changed", handler);
-  }, [load]);
-
   // Tautan langsung dari dasbor koordinator: /recruitment?tab=kelola
   useEffect(() => {
+    if (isCoord) {
+      setTab("manage");
+      return;
+    }
     const requested = new URLSearchParams(window.location.search).get("tab");
     if (requested === "kelola" || requested === "manage") setTab("manage");
     else if (requested === "lama" || requested === "mine") setTab("mine");
     else if (requested === "lamar" || requested === "apply") setTab("apply");
-  }, []);
+  }, [isCoord]);
 
   const openPeriods = useMemo(() => periods.filter((p) => p.status === "DIBUKA" && new Date(p.tenggat) >= new Date(new Date().toDateString())), [periods]);
   const pendingApps = applications.filter((a) => ["DIAJUKAN", "DIPROSES", "WAWANCARA"].includes(a.status));
+
+  // Opsi dropdown mata kuliah: unik per nama, diurutkan alfabetis.
+  const courseOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return courses
+      .filter((c) => {
+        if (!c?.nama || seen.has(c.nama)) return false;
+        seen.add(c.nama);
+        return true;
+      })
+      .sort((a, b) => String(a.nama).localeCompare(String(b.nama)));
+  }, [courses]);
 
   function pickPeriod(periodId: string) {
     const p = periods.find((x) => x.id === periodId);
@@ -111,7 +125,10 @@ export default function RecruitmentPage() {
     e.preventDefault();
     setMsg(null);
     try {
-      await api("/recruitment/periods", { method: "POST", body: { ...periodForm, kuota: Number(periodForm.kuota) } });
+      await api("/recruitment/periods", {
+        method: "POST",
+        body: { ...periodForm, kuota: Number(periodForm.kuota), periodeId: getSelectedPeriodeId() || undefined },
+      });
       setMsg({ type: "success", text: "Periode rekrutmen dibuka." });
       setPeriodForm(EMPTY_PERIOD);
       load();
@@ -226,19 +243,24 @@ export default function RecruitmentPage() {
       </div>
 
       <div className="chip-row" style={{ marginBottom: 16 }}>
-        {([
-          ["periods", "Periode"],
-          ["apply", "Lamar"],
-          ["mine", "Lamaran saya"],
-          ...(isCoord ? [["manage", "Kelola"] as [string, string]] : []),
-        ] as [string, string][]).map(([value, label]) => (
-          <button key={value} type="button" className={`chip ${tab === value ? "is-active" : ""}`} onClick={() => setTab(value as any)}>
-            {label}
+        {isCoord ? (
+          <button key="manage" type="button" className={`chip ${tab === "manage" ? "is-active" : ""}`} onClick={() => setTab("manage")}>
+            Kelola
           </button>
-        ))}
+        ) : (
+          [
+            ["periods", "Periode"],
+            ["apply", "Lamar"],
+            ["mine", "Lamaran saya"],
+          ].map(([value, label]) => (
+            <button key={value} type="button" className={`chip ${tab === value ? "is-active" : ""}`} onClick={() => setTab(value as any)}>
+              {label}
+            </button>
+          ))
+        )}
       </div>
 
-      {tab === "periods" && (
+      {!isCoord && tab === "periods" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {loading ? (
             <div className="card">
@@ -299,7 +321,7 @@ export default function RecruitmentPage() {
         </div>
       )}
 
-      {tab === "apply" && (
+      {!isCoord && tab === "apply" && (
         <div className="card">
           <div className="card-head">
             <div>
@@ -375,7 +397,7 @@ export default function RecruitmentPage() {
         </div>
       )}
 
-      {tab === "mine" && (
+      {!isCoord && tab === "mine" && (
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -443,7 +465,24 @@ export default function RecruitmentPage() {
                 </div>
                 <div className="field">
                   <label htmlFor="np-mk">Mata kuliah</label>
-                  <input id="np-mk" className="input" placeholder="Praktikum Basis Data" value={periodForm.mataKuliah} onChange={(e) => setPeriodForm({ ...periodForm, mataKuliah: e.target.value })} required />
+                  <select
+                    id="np-mk"
+                    value={periodForm.mataKuliah}
+                    onChange={(e) => setPeriodForm({ ...periodForm, mataKuliah: e.target.value })}
+                    required
+                  >
+                    <option value="">Pilih mata kuliah…</option>
+                    {courseOptions.map((c) => (
+                      <option key={c.id} value={c.nama}>
+                        {c.kode ? `${c.kode} — ${c.nama}` : c.nama}
+                      </option>
+                    ))}
+                  </select>
+                  {courseOptions.length === 0 && (
+                    <p className="card-note" style={{ margin: "4px 0 0" }}>
+                      Belum ada data mata kuliah. Tambahkan dulu di menu Mata Kuliah.
+                    </p>
+                  )}
                 </div>
                 <div className="field">
                   <label htmlFor="np-kuota">Kuota</label>

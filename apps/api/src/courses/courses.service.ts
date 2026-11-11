@@ -102,6 +102,8 @@ export class CoursesService {
     const kelas = await this.normalizeKelas(Array.isArray(data?.kelas) ? data.kelas : []);
     for (const k of kelas) await this.assertNoConflict(k);
 
+    const periodeId = data?.periodeId || (await this.currentPeriodeId());
+
     const id = await this.prisma.$transaction(async (tx) => {
       const course = await tx.mataKuliah.create({
         data: {
@@ -113,10 +115,11 @@ export class CoursesService {
           instrukturId,
           asistenIds,
           deskripsi: data?.deskripsi ? String(data.deskripsi) : null,
+          periodeId,
         },
       });
       for (const k of kelas) {
-        await tx.schedule.create({ data: this.toSchedule(course, k) });
+        await tx.schedule.create({ data: this.toSchedule(course, k, periodeId) });
       }
       return course.id;
     });
@@ -234,7 +237,9 @@ export class CoursesService {
     await this.assertKelasNameFree(courseId, kelas.nama);
     await this.assertNoConflict(kelas);
 
-    const created = await this.prisma.schedule.create({ data: this.toSchedule(course, kelas) });
+    const created = await this.prisma.schedule.create({
+      data: this.toSchedule(course, kelas, (course as any).periodeId || (await this.currentPeriodeId())),
+    });
     if (actorId) {
       await this.audit.log({
         actorId,
@@ -498,6 +503,7 @@ export class CoursesService {
   private toSchedule(
     course: { id: string; nama: string; dosenId: string | null; instrukturId: string | null; asistenIds: string[] },
     kelas: NormalizedKelas,
+    periodeId?: string | null,
   ) {
     return {
       labId: kelas.labId,
@@ -515,6 +521,13 @@ export class CoursesService {
       semester: kelas.semester,
       jenis: "PRAKTIKUM_RUTIN" as const,
       status: "AKTIF" as const,
+      periodeId: periodeId ?? null,
     };
+  }
+
+  /** ID periode akademik aktif, dipakai sebagai default data baru. */
+  private async currentPeriodeId(): Promise<string | null> {
+    const current = await this.prisma.periode.findFirst({ where: { isCurrent: true }, select: { id: true } });
+    return current?.id ?? null;
   }
 }

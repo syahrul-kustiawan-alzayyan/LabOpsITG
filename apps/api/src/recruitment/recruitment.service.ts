@@ -45,6 +45,7 @@ export class RecruitmentService {
 
   async createPeriod(data: any, actorId: string) {
     const tipe = data.tipe === "INSTRUKTUR" ? "INSTRUKTUR" : "ASISTEN_DOSEN";
+    const periodeId = data.periodeId || (await this.currentPeriodeId());
     const period = await this.prisma.recruitmentPeriod.create({
       data: {
         posisi: positionLabel(tipe),
@@ -54,10 +55,17 @@ export class RecruitmentService {
         persyaratan: data.persyaratan,
         tenggat: new Date(data.tenggat),
         status: "DIBUKA",
+        periodeId,
       },
     });
     await this.audit.log({ actorId, action: "CREATE_RECRUITMENT_PERIOD", objectType: "RecruitmentPeriod", objectId: period.id, newValue: period });
     return period;
+  }
+
+  /** ID periode akademik yang sedang aktif, dipakai sebagai default rekrutmen baru. */
+  private async currentPeriodeId(): Promise<string | null> {
+    const current = await this.prisma.periode.findFirst({ where: { isCurrent: true }, select: { id: true } });
+    return current?.id ?? null;
   }
 
   async updatePeriod(id: string, data: any, actorId: string) {
@@ -74,6 +82,7 @@ export class RecruitmentService {
         persyaratan: data.persyaratan,
         tenggat: data.tenggat ? new Date(data.tenggat) : undefined,
         status: data.status,
+        periodeId: data.periodeId === undefined ? undefined : data.periodeId,
       },
     });
     await this.audit.log({ actorId, action: "UPDATE_RECRUITMENT_PERIOD", objectType: "RecruitmentPeriod", objectId: id, oldValue: before, newValue: period });

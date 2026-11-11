@@ -110,6 +110,7 @@ export class BookingsService {
     const booking = await this.prisma.booking.create({
       data: {
         peminjamId,
+        periodeId: data.periodeId || (await this.currentPeriodeId()),
         labId: data.labId,
         tanggal,
         jamMulai: data.jamMulai,
@@ -143,6 +144,12 @@ export class BookingsService {
     throw new BadRequestException("Gagal membuat kode pengajuan, coba lagi");
   }
 
+  /** ID periode akademik aktif, dipakai sebagai default peminjaman baru. */
+  private async currentPeriodeId(): Promise<string | null> {
+    const current = await this.prisma.periode.findFirst({ where: { isCurrent: true }, select: { id: true } });
+    return current?.id ?? null;
+  }
+
   /** Pengajuan dari halaman publik: tanpa akun, dilacak lewat kode + email. */
   async createPublic(data: any) {
     const tanggal = startOfJakartaDay(data.tanggal);
@@ -159,6 +166,7 @@ export class BookingsService {
         emailPeminjam: data.emailPeminjam.trim().toLowerCase(),
         noWhatsapp: data.noWhatsapp?.trim() || null,
         nim: data.nim?.trim() || null,
+        periodeId: await this.currentPeriodeId(),
         labId: data.labId,
         tanggal,
         jamMulai: data.jamMulai,

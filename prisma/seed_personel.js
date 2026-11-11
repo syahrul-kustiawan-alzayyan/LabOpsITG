@@ -50,12 +50,15 @@ const ASISTEN = [
 
 async function upsertPersonel(list, role, defaultPassword) {
   const users = [];
+  // Personel baru harus ikut periode akademik aktif, kalau tidak mereka tidak
+  // muncul saat halaman difilter per periode.
+  const current = await prisma.periode.findFirst({ where: { isCurrent: true }, select: { id: true } });
   for (const p of list) {
     const passwordHash = await bcrypt.hash(p.password || defaultPassword, 10);
     const user = await prisma.user.upsert({
       where: { email: p.email },
       update: { nama: p.nama, passwordHash, role, subRoles: [role], status: "ACTIVE", deletedAt: null },
-      create: { nama: p.nama, email: p.email, passwordHash, role, subRoles: [role] },
+      create: { nama: p.nama, email: p.email, passwordHash, role, subRoles: [role], periodeId: current?.id ?? null },
       select: { id: true, nama: true, email: true },
     });
     users.push(user);
