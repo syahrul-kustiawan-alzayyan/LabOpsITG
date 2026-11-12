@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api, withPeriode } from "@/lib/api";
+import { api, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { labDisplayName, labRoom } from "@/lib/lab-label";
 
@@ -60,7 +60,7 @@ export default function KaprodiPage() {
       const [p, cs, st, iss, att, lb] = await Promise.all([
         api<any>(`/prodi/${prodiId}`),
         api<any[]>(coursesUrl).catch(() => []),
-        api<any[]>(`/users?role=KAPRODI&prodiId=${prodiId}`).catch(() => []),
+        api<any[]>(`/users?prodiId=${prodiId}`).catch(() => []),
         api<any[]>(`/issues`).catch(() => []),
         api<any[]>(attUrl).catch(() => []),
         api<any[]>("/labs").catch(() => []),
@@ -76,7 +76,7 @@ export default function KaprodiPage() {
     } finally {
       setLoading(false);
     }
-  }, [me]);
+  }, [getSelectedPeriodeId()]);
 
   useEffect(() => {
     load();
