@@ -455,6 +455,10 @@ model InventoryItem {
   kategori       InventoryCategory
   labId          String
   kondisi        InventoryCondition @default(BAIK)
+  quantity       Int                @default(1)
+  unit           String             @default("Buah")
+  quantityGood   Int                @default(0)
+  quantityDamaged Int               @default(0)
   tanggalPerolehan DateTime?
   catatan        String?
   deletedAt      DateTime?

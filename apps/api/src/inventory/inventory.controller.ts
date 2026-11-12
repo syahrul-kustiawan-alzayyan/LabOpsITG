@@ -41,4 +41,8 @@ export class InventoryController {
   @Post("import")
   @Roles("ADMIN_SYSTEM")
   importCsv(@Body() body: { rows: any[] }, @Req() req: Request) { return this.svc.importCsv(body.rows, (req as any).user?.sub); }
+
+  @Post("import/docx")
+  @Roles("ADMIN_SYSTEM")
+  importDocx(@Body() body: { rows: any[] }, @Req() req: Request) { return this.svc.importDocx(body.rows, (req as any).user?.sub); }
 }

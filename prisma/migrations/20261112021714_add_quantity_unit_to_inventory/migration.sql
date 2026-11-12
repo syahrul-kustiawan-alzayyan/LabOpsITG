@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "InventoryItem" ADD COLUMN     "quantity" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "quantityDamaged" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "quantityGood" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "unit" TEXT NOT NULL DEFAULT 'Buah';

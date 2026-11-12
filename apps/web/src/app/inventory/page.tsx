@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, withPeriode } from "@/lib/api";
@@ -21,7 +21,19 @@ const KONDISI_BADGE: Record<string, string> = {
   DIHAPUSKAN: "badge-muted",
 };
 
-const EMPTY = { kodeAset: "", nama: "", kategori: "PC", labId: "", kondisi: "BAIK", tanggalPerolehan: "", catatan: "" };
+const EMPTY = {
+  kodeAset: "",
+  nama: "",
+  kategori: "PC",
+  labId: "",
+  kondisi: "BAIK",
+  tanggalPerolehan: "",
+  catatan: "",
+  quantity: 1,
+  unit: "Buah",
+  quantityGood: 1,
+  quantityDamaged: 0,
+};
 
 export default function InventoryPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -36,6 +48,7 @@ export default function InventoryPage() {
   const [form, setForm] = useState<any>(EMPTY);
   const [mutateItem, setMutateItem] = useState<any>(null);
   const [mutateLab, setMutateLab] = useState("");
+  const [showImportDocx, setShowImportDocx] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const isAdmin = me?.role === "ADMIN_SYSTEM";
@@ -65,7 +78,6 @@ export default function InventoryPage() {
   }, [filterLab, filterKondisi, filterKategori]);
 
   useEffect(() => {
-    // Dukungan tautan langsung dari dasbor: /inventory?labId=...
     const labId = new URLSearchParams(window.location.search).get("labId");
     if (labId) setFilterLab(labId);
   }, []);
@@ -74,7 +86,6 @@ export default function InventoryPage() {
     load();
   }, [load]);
 
-  // Muat ulang inventaris saat periode diganti dari sidebar
   useEffect(() => {
     const handler = () => load();
     window.addEventListener("labops:periode-changed", handler);
@@ -85,7 +96,10 @@ export default function InventoryPage() {
     const q = search.trim().toLowerCase();
     if (!q) return items;
     return items.filter(
-      (it) => it.kodeAset?.toLowerCase().includes(q) || it.nama?.toLowerCase().includes(q) || it.lab?.kode?.toLowerCase().includes(q),
+      (it) =>
+        it.kodeAset?.toLowerCase().includes(q) ||
+        it.nama?.toLowerCase().includes(q) ||
+        it.lab?.kode?.toLowerCase().includes(q),
     );
   }, [items, search]);
 
@@ -102,6 +116,11 @@ export default function InventoryPage() {
       const body: any = { ...form, kapasitas: undefined };
       if (!body.tanggalPerolehan) delete body.tanggalPerolehan;
       if (!body.catatan) delete body.catatan;
+      if (!body.kondisi) {
+        const qGood = Number(body.quantityGood) || Number(body.quantity) || 0;
+        const qDmg = Number(body.quantityDamaged) || 0;
+        body.kondisi = qDmg > 0 && qGood === 0 ? "RUSAK" : qDmg > 0 ? "PERLU_PERAWATAN" : "BAIK";
+      }
       await api("/inventory", { method: "POST", body });
       setMsg({ type: "success", text: `Item ${form.kodeAset} ditambahkan.` });
       setForm({ ...EMPTY, labId: form.labId });
@@ -128,7 +147,10 @@ export default function InventoryPage() {
       return;
     }
     try {
-      await api(`/inventory/${mutateItem.id}/mutate`, { method: "PATCH", body: { labTujuanId: mutateLab } });
+      await api(`/inventory/${mutateItem.id}/mutate`, {
+        method: "PATCH",
+        body: { labTujuanId: mutateLab },
+      });
       setMsg({ type: "success", text: `${mutateItem.kodeAset} dipindahkan ke lab tujuan.` });
       setMutateItem(null);
       setMutateLab("");
@@ -149,12 +171,53 @@ export default function InventoryPage() {
     }
   }
 
+  async function doImportDocx() {
+    const textArea = document.getElementById("import-docx-text") as HTMLTextAreaElement | null;
+    const labSelect = document.getElementById("import-docx-lab") as HTMLSelectElement | null;
+    const kategoriSelect = document.getElementById("import-docx-kategori") as HTMLSelectElement | null;
+    if (!textArea || !labSelect || !kategoriSelect) return;
+    const text = textArea.value.trim();
+    if (!text) return;
+    const labId = labSelect.value;
+    const kategori = kategoriSelect.value;
+    if (!labId) {
+      setMsg({ type: "danger", text: "Pilih lab terlebih dahulu." });
+      return;
+    }
+    const lines = text.split("\n").filter((l) => l.trim());
+    const rows = lines.map((line) => {
+      const parts = line.split("|").map((p) => p.trim());
+      return {
+        nama: parts[0] || "",
+        quantity: Number(parts[1]) || 1,
+        unit: parts[2] || "Buah",
+        quantityGood: Number(parts[3]) || Number(parts[1]) || 0,
+        quantityDamaged: Number(parts[4]) || 0,
+        kondisi: parts[5] || "BAIK",
+        catatan: parts[6] || "",
+        labId,
+        kategori,
+      };
+    });
+    setMsg(null);
+    try {
+      await api("/inventory/import/docx", { method: "POST", body: { rows } });
+      setMsg({ type: "success", text: `${rows.length} item berhasil diimpor.` });
+      setShowImportDocx(false);
+      load();
+    } catch (err: any) {
+      setMsg({ type: "danger", text: err.message || "Gagal mengimpor data." });
+    }
+  }
+
   return (
     <>
       <div className="page-header">
         <div>
           <h1 className="page-title">Inventaris Lab</h1>
-          <p className="page-subtitle">Aset per lab, kondisi perangkat, dan mutasi antar-ruang dalam satu catatan.</p>
+          <p className="page-subtitle">
+            Aset per lab, kondisi perangkat, dan mutasi antar-ruang dalam satu catatan.
+          </p>
         </div>
         <div className="page-actions">
           <button
@@ -168,7 +231,9 @@ export default function InventoryPage() {
                   kategori: it.kategori,
                   lab: it.lab?.kode,
                   kondisi: it.kondisi,
-                  tanggalPerolehan: it.tanggalPerolehan ? new Date(it.tanggalPerolehan).toLocaleDateString("id-ID") : "",
+                  tanggalPerolehan: it.tanggalPerolehan
+                    ? new Date(it.tanggalPerolehan).toLocaleDateString("id-ID")
+                    : "",
                   catatan: it.catatan || "",
                 })),
               )
@@ -177,9 +242,15 @@ export default function InventoryPage() {
             <Icon name="report" size={16} /> Ekspor CSV
           </button>
           {canManageInventory && (
-            <button className="btn" onClick={() => setShowForm((v) => !v)}>
-              <Icon name={showForm ? "close" : "plus"} size={16} /> {showForm ? "Tutup form" : "Tambah aset"}
-            </button>
+            <>
+              <button className="btn" onClick={() => setShowForm((v) => !v)}>
+                <Icon name={showForm ? "close" : "plus"} size={16} />
+                {showForm ? "Tutup form" : "Tambah aset"}
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowImportDocx((v) => !v)}>
+                <Icon name="report" size={16} /> Impor DOCX
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -226,26 +297,40 @@ export default function InventoryPage() {
           <div className="card-head">
             <div>
               <h2 className="card-title">Aset baru</h2>
-              <p className="card-note">Kode aset harus unik dan mengikuti pola inventaris laboratorium.</p>
+              <p className="card-note">
+                Kode aset harus unik dan mengikuti pola inventaris laboratorium.
+              </p>
             </div>
           </div>
           <form onSubmit={create} className="form-grid">
             <div className="form-row">
               <div className="field">
                 <label htmlFor="inv-kode">Kode aset</label>
-                <input id="inv-kode" className="input" placeholder="INV-C101-PC-21" value={form.kodeAset} onChange={(e) => setForm({ ...form, kodeAset: e.target.value })} required />
+                <input
+                  id="inv-kode"
+                  className="input"
+                  placeholder="INV-C101-PC-21"
+                  value={form.kodeAset}
+                  onChange={(e) => setForm({ ...form, kodeAset: e.target.value })}
+                  required
+                />
               </div>
               <div className="field">
                 <label htmlFor="inv-nama">Nama aset</label>
-                <input id="inv-nama" className="input" placeholder="PC All-in-One 21" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} required />
+                <input
+                  id="inv-nama"
+                  className="input"
+                  placeholder="PC All-in-One 21"
+                  value={form.nama}
+                  onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                  required
+                />
               </div>
               <div className="field">
                 <label htmlFor="inv-kategori">Kategori</label>
                 <select id="inv-kategori" value={form.kategori} onChange={(e) => setForm({ ...form, kategori: e.target.value })}>
                   {KATEGORI.map((k) => (
-                    <option key={k} value={k}>
-                      {k.replaceAll("_", " ").toLowerCase()}
-                    </option>
+                    <option key={k} value={k}>{k.replaceAll("_", " ").toLowerCase()}</option>
                   ))}
                 </select>
               </div>
@@ -264,20 +349,73 @@ export default function InventoryPage() {
                 <label htmlFor="inv-kondisi">Kondisi awal</label>
                 <select id="inv-kondisi" value={form.kondisi} onChange={(e) => setForm({ ...form, kondisi: e.target.value })}>
                   {KONDISI.filter((k) => k !== "DIHAPUSKAN").map((k) => (
-                    <option key={k} value={k}>
-                      {KONDISI_LABEL[k]}
-                    </option>
+                    <option key={k} value={k}>{KONDISI_LABEL[k]}</option>
                   ))}
                 </select>
               </div>
               <div className="field">
+                <label htmlFor="inv-quantity">Jumlah</label>
+                <input
+                  id="inv-quantity"
+                  className="input"
+                  type="number"
+                  min="0"
+                  value={form.quantity || 0}
+                  onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="inv-unit">Satuan</label>
+                <input
+                  id="inv-unit"
+                  className="input"
+                  placeholder="Buah"
+                  value={form.unit || "Buah"}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="inv-qty-good">Baik</label>
+                <input
+                  id="inv-qty-good"
+                  className="input"
+                  type="number"
+                  min="0"
+                  value={form.quantityGood || 0}
+                  onChange={(e) => setForm({ ...form, quantityGood: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="inv-qty-damaged">Rusak</label>
+                <input
+                  id="inv-qty-damaged"
+                  className="input"
+                  type="number"
+                  min="0"
+                  value={form.quantityDamaged || 0}
+                  onChange={(e) => setForm({ ...form, quantityDamaged: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="field">
                 <label htmlFor="inv-tanggal">Tanggal perolehan</label>
-                <input id="inv-tanggal" className="input" type="date" value={form.tanggalPerolehan} onChange={(e) => setForm({ ...form, tanggalPerolehan: e.target.value })} />
+                <input
+                  id="inv-tanggal"
+                  className="input"
+                  type="date"
+                  value={form.tanggalPerolehan}
+                  onChange={(e) => setForm({ ...form, tanggalPerolehan: e.target.value })}
+                />
               </div>
             </div>
             <div className="field">
               <label htmlFor="inv-catatan">Catatan</label>
-              <input id="inv-catatan" className="input" placeholder="Nomor seri, sumber pengadaan, atau keterangan lain" value={form.catatan} onChange={(e) => setForm({ ...form, catatan: e.target.value })} />
+              <input
+                id="inv-catatan"
+                className="input"
+                placeholder="Nomor seri, sumber pengadaan, atau keterangan lain"
+                value={form.catatan}
+                onChange={(e) => setForm({ ...form, catatan: e.target.value })}
+              />
             </div>
             <div>
               <button className="btn" type="submit">
@@ -293,7 +431,14 @@ export default function InventoryPage() {
           <div className="field" style={{ flex: "1 1 220px", minWidth: 200 }}>
             <label htmlFor="inv-search">Cari</label>
             <div style={{ position: "relative" }}>
-              <input id="inv-search" className="input" placeholder="Kode aset, nama, lab…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
+              <input
+                id="inv-search"
+                className="input"
+                placeholder="Kode aset, nama, lab…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ paddingLeft: 32 }}
+              />
               <span style={{ position: "absolute", left: 10, top: 10, color: "var(--ink-soft)" }}>
                 <Icon name="search" size={15} />
               </span>
@@ -323,11 +468,20 @@ export default function InventoryPage() {
           </div>
         </div>
         <div className="chip-row" style={{ marginTop: 12 }}>
-          <button type="button" className={`chip ${filterKondisi === "" ? "is-active" : ""}`} onClick={() => setFilterKondisi("")}>
+          <button
+            type="button"
+            className={`chip ${filterKondisi === "" ? "is-active" : ""}`}
+            onClick={() => setFilterKondisi("")}
+          >
             Semua kondisi
           </button>
           {KONDISI.map((k) => (
-            <button type="button" key={k} className={`chip ${filterKondisi === k ? "is-active" : ""}`} onClick={() => setFilterKondisi(k)}>
+            <button
+              type="button"
+              key={k}
+              className={`chip ${filterKondisi === k ? "is-active" : ""}`}
+              onClick={() => setFilterKondisi(k)}
+            >
               {KONDISI_LABEL[k]}
             </button>
           ))}
@@ -341,6 +495,8 @@ export default function InventoryPage() {
               <th>Kode aset</th>
               <th>Nama</th>
               <th>Kategori</th>
+              <th>Qty / Unit</th>
+              <th>Baik / Rusak</th>
               <th>Lab</th>
               <th>Kondisi</th>
               <th>Perolehan</th>
@@ -372,24 +528,50 @@ export default function InventoryPage() {
                   </td>
                   <td>
                     <div>{it.nama}</div>
-                    {it.catatan && <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>{it.catatan}</div>}
+                    {it.catatan && (
+                      <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>{it.catatan}</div>
+                    )}
                   </td>
                   <td>{it.kategori.replaceAll("_", " ").toLowerCase()}</td>
+                  <td className="num">
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{it.quantity || 0}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>{it.unit || "Buah"}</div>
+                  </td>
+                  <td className="num" style={{ fontSize: 13 }}>
+                    <span style={{ color: "var(--ok)" }}>{it.quantityGood || 0}</span>
+                    <span style={{ color: "var(--danger)", marginLeft: 4 }}>
+                      {it.quantityDamaged || 0}
+                    </span>
+                  </td>
                   <td className="num">{it.lab?.kode}</td>
                   <td>
                     {canManageInventory ? (
-                      <select className="input" style={{ width: 170, padding: "4px 8px", minHeight: 30 }} value={it.kondisi} onChange={(e) => updateKondisi(it.id, e.target.value)} aria-label={`Kondisi ${it.kodeAset}`}>
+                      <select
+                        className="input"
+                        style={{ width: 170, padding: "4px 8px", minHeight: 30 }}
+                        value={it.kondisi}
+                        onChange={(e) => updateKondisi(it.id, e.target.value)}
+                        aria-label={`Kondisi ${it.kodeAset}`}
+                      >
                         {KONDISI.map((k) => (
-                          <option key={k} value={k}>
-                            {KONDISI_LABEL[k]}
-                          </option>
+                          <option key={k} value={k}>{KONDISI_LABEL[k]}</option>
                         ))}
                       </select>
                     ) : (
-                      <span className={`badge ${KONDISI_BADGE[it.kondisi] || "badge-muted"}`}>{KONDISI_LABEL[it.kondisi] || it.kondisi}</span>
+                      <span className={`badge ${KONDISI_BADGE[it.kondisi] || "badge-muted"}`}>
+                        {KONDISI_LABEL[it.kondisi] || it.kondisi}
+                      </span>
                     )}
                   </td>
-                  <td className="num">{it.tanggalPerolehan ? new Date(it.tanggalPerolehan).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</td>
+                  <td className="num">
+                    {it.tanggalPerolehan
+                      ? new Date(it.tanggalPerolehan).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </td>
                   <td>
                     {canManageInventory ? (
                       <div className="table-actions">
@@ -427,7 +609,12 @@ export default function InventoryPage() {
             </button>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select className="input" style={{ maxWidth: 320 }} value={mutateLab} onChange={(e) => setMutateLab(e.target.value)}>
+            <select
+              className="input"
+              style={{ maxWidth: 320 }}
+              value={mutateLab}
+              onChange={(e) => setMutateLab(e.target.value)}
+            >
               <option value="">Pilih lab tujuan</option>
               {labs
                 .filter((l) => l.id !== mutateItem.labId)
@@ -440,6 +627,68 @@ export default function InventoryPage() {
             <button className="btn" onClick={doMutate} disabled={!mutateLab}>
               Pindahkan
             </button>
+          </div>
+        </div>
+      )}
+
+      {showImportDocx && canManageInventory && (
+        <div className="panel reveal">
+          <div className="card-head">
+            <div>
+              <h3 className="panel-title" style={{ margin: 0 }}>
+                Impor Inventaris dari DOCX
+              </h3>
+              <p className="card-note">
+                Tempelkan data tabel inventaris dari dokumen Word (hasil copy-paste dari Excel/Word). Setiap baris:
+                Nama Barang | Jumlah | Satuan | Kondisi (Baik/Rusak) | Keterangan.
+              </p>
+            </div>
+            <button className="icon-btn" onClick={() => setShowImportDocx(false)} aria-label="Tutup">
+              <Icon name="close" size={16} />
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 600 }}>
+            <div className="field">
+              <label htmlFor="import-docx-text">Data tabel (copy-paste)</label>
+              <textarea
+                id="import-docx-text"
+                className="input"
+                rows={8}
+                placeholder="Contoh:
+Glassy Whiteboard | 1 | Set | Baik |
+AC | 1 | Unit | Baik |
+Jam Dinding | 1 | Buah | Baik |"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="import-docx-lab">Lab tujuan</label>
+              <select id="import-docx-lab" className="input">
+                <option value="">Pilih lab</option>
+                {labs.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.kode} — {l.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="import-docx-kategori">Kategori</label>
+              <select id="import-docx-kategori" className="input">
+                {KATEGORI.map((k) => (
+                  <option key={k} value={k}>
+                    {k.replaceAll("_", " ").toLowerCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowImportDocx(false)}>
+                Batal
+              </button>
+              <button className="btn" onClick={doImportDocx}>
+                Impor Data
+              </button>
+            </div>
           </div>
         </div>
       )}
