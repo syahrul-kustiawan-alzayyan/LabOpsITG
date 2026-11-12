@@ -203,6 +203,7 @@ model Periode {
   users       User[]
   inventoryItems InventoryItem[]
   labs        Lab[]
+  issues      Issue[]
 
   @@index([kode])
   @@index([isCurrent])
@@ -363,6 +364,8 @@ model Issue {
   item             InventoryItem? @relation(fields: [itemId], references: [id])
   penanggungJawab  User?          @relation("PenanggungJawab", fields: [penanggungJawabId], references: [id])
   history          IssueHistory[]
+  periode          Periode?       @relation(fields: [periodeId], references: [id])
+  periodeId        String?
 }
 
 model IssueHistory {

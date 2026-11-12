@@ -23,13 +23,14 @@ export class IssuesService {
     throw new BadRequestException("Gagal membuat nomor tiket, coba lagi");
   }
 
-  async findAll(q: { status?: string; labId?: string; urgensi?: string; pelaporId?: string; page?: string; limit?: string }, actor?: { sub: string; role: string }) {
+  async findAll(q: { status?: string; labId?: string; urgensi?: string; pelaporId?: string; page?: string; limit?: string; periodeId?: string }, actor?: { sub: string; role: string }) {
     const where: any = { deletedAt: null };
     if (actor?.role === "USER" && actor.sub) where.pelaporId = actor.sub;
     else if (q.pelaporId) where.pelaporId = q.pelaporId;
     if (q.status) where.status = q.status;
     if (q.labId) where.labId = q.labId;
     if (q.urgensi) where.urgensi = q.urgensi;
+    if (q.periodeId) where.periodeId = q.periodeId;
     const page = Math.max(1, Number(q.page) || 1);
     const limit = Math.min(MAX_LIMIT, Math.max(1, Number(q.limit) || 200));
     return this.prisma.issue.findMany({

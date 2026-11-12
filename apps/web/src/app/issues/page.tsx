@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, fileUrl, uploadFile } from "@/lib/api";
+import { api, fileUrl, uploadFile, withPeriode, getSelectedPeriodeId } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 
 const KATEGORI = [
@@ -71,7 +71,8 @@ export default function IssuesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
+      const per = withPeriode({});
+      const params = new URLSearchParams(per as Record<string, string>);
       if (filterStatus) params.set("status", filterStatus);
       if (filterLab) params.set("labId", filterLab);
       if (filterUrgensi) params.set("urgensi", filterUrgensi);
@@ -96,10 +97,17 @@ export default function IssuesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterLab, filterUrgensi]);
+  }, [filterStatus, filterLab, filterUrgensi, getSelectedPeriodeId()]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Muat ulang kendala saat periode diganti dari sidebar
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("labops:periode-changed", handler);
+    return () => window.removeEventListener("labops:periode-changed", handler);
   }, [load]);
 
   const visible = useMemo(() => {
